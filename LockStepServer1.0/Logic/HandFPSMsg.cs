@@ -1,19 +1,20 @@
-﻿using System;
+﻿using LockStepServer1._0.Protocol;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TankServerTest.Core;
-using TankServerTest.FPS;
+using LockStepServer1._0.Core;
+using LockStepServer1._0.LockStep;
 
-namespace TankServerTest.Logic
+namespace LockStepServer1._0.Logic
 {
     class HandFPSMsg
     {
-        public void MsgFPS(ProtocoBase protocoBase)
+        public void MsgFPS(ProtocolBase protocoBase)
         {
             Console.WriteLine("处理FPS");
-            ProtocoBytes proto = (ProtocoBytes)protocoBase;
+            ProtocolBytes proto = (ProtocolBytes)protocoBase;
             int start = 0;
             string ProtoName = proto.GetString(start, ref start);
             int RoomId = proto.GetInt(start, ref start);
@@ -21,5 +22,16 @@ namespace TankServerTest.Logic
             RoomMgr.instance.list[RoomId].FPS.receFPS.RecFps(protocoBase);
             //ReceFPS.instance.RecFps(player,protocoBase);
         }
-    }
+        public void MsgLockStep(ProtocolBase protocoBase)
+        {
+            Console.WriteLine("处理LockStep");
+            ProtocolBytes proto = (ProtocolBytes)protocoBase;
+            string ready = proto.GetDecode()[2].ToString();
+            if (ready == "Ready")
+            {
+                LockStepMGR fPS = new LockStepMGR();//测试
+                fPS.Start();
+            }
+        }
+    }  
 }

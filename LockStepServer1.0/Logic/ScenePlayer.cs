@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TankServerTest.Logic
+namespace LockStepServer1._0.Logic
 {
     class ScenePlayer
     {

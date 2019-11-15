@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TankServerTest.Core;
+using LockStepServer1._0.Core;
+using LockStepServer1._0.Protocol;
+using LockStepServer1._0.NetWorking;
 
-namespace TankServerTest.Logic
+namespace LockStepServer1._0.Logic
 {
     class Scene
     {
@@ -41,16 +43,16 @@ namespace TankServerTest.Logic
                 ScenePlayer p = GetScenePlayer(id);
                 list.Remove(p);
             }
-            ProtocoBytes protoco = new ProtocoBytes();
+            ProtocolBytes protoco = new ProtocolBytes();
             protoco.Addstring("PlayerLeave");
             protoco.Addstring(id);
-            ServerNet.instance.Broadcast(protoco);
+            NMC.instance.Broadcast(protoco);
         }
         //发送list
         public void SendPlayerList(Player player)
         {
             int count = list.Count;
-            ProtocoBytes protoco = new ProtocoBytes();
+            ProtocolBytes protoco = new ProtocolBytes();
             protoco.Addstring("GetList");
             protoco.AddInt(count);
             for(int i = 0; i < count; i++)
@@ -67,7 +69,7 @@ namespace TankServerTest.Logic
         public void UpdateInfo(string id,float x,float y,float z,int score)
         {
             int count = list.Count;
-            ProtocoBytes protoco = new ProtocoBytes();
+            ProtocolBytes protoco = new ProtocolBytes();
             ScenePlayer p = GetScenePlayer(id);
             if (p == null)
                 return;

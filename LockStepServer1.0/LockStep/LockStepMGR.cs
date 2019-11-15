@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
+using LockStepServer1._0.Core;
 using LockStepServer1._0.NetWorking;
 using LockStepServer1._0.Protocol;
 
@@ -12,9 +13,11 @@ namespace LockStepServer1._0.LockStep
 {
     class LockStepMGR
     {
+        //public Room room;
         public static LockStepMGR instance;
         Timer timer = new Timer(50);
         public ProtocolBase Proto;
+        private int S_Farmid = 0;
         public List<ProtocolBytes> FPS = new List<ProtocolBytes>();
         public List<EndPoint> P_UDP_IP = new List<EndPoint>();
         public Dictionary<EndPoint, ProtocolBase> Rep_Fps_data = new Dictionary<EndPoint, ProtocolBase>();
@@ -38,39 +41,28 @@ namespace LockStepServer1._0.LockStep
             //    Console.WriteLine("FPS");
             //}
             //return;
-            while (true)
-                if (!receFPS.Proing)
-                {
-                    receFPS.Merge();
-                    if (room.Rep_Send_List != null)
-                    {
-                        foreach (EndPoint endPoint in room.Rep_Send_List.Keys)
-                        {
-                            ProtocolBase prot = HisFps(room.Rep_Send_List[endPoint]);
-                            Rep_Fps_data.Add(endPoint, prot);
-                        }
-                    }
-                    Proto = receFPS.DataFPS;
-                    ProtocolBytes proto = (ProtocolBytes)Proto;
-                    room.BrodFPS(Proto);
-                    receFPS.FPSInit();
-                    int start = 0;
-                    string protName = proto.GetString(start, ref start);
-                    int FPS_id = proto.GetInt(start, ref start);
-                    int fps_cound = proto.GetInt(start, ref start);
-                    int count = proto.GetInt(start, ref start);
-                    Console.WriteLine("发送逻辑帧FPS_ID" + FPS_id);
-                    Console.WriteLine("count" + count);
-                    for (int i = 0; i < count; i++)
-                    {
-                        string playerid = proto.GetString(start, ref start);
-                        string opName = proto.GetString(start, ref start);
-                        float op = proto.GetFloat(start, ref start);
-                        Console.WriteLine("playerid=" + playerid + "  " + "opName=" + opName + " " + "op=" + op);
-                    }
-                    FPS.Add((ProtocolBytes)Proto);
-                    return;
-                }
+            //while (true)
+            //    if (!receFPS.Proing)
+            //    {
+            //        receFPS.Merge();
+            //        receFPS.FPSInit();
+            //        int start = 0;
+            //        string protName = proto.GetString(start, ref start);
+            //        int FPS_id = proto.GetInt(start, ref start);
+            //        int fps_cound = proto.GetInt(start, ref start);
+            //        int count = proto.GetInt(start, ref start);
+            //        Console.WriteLine("发送逻辑帧FPS_ID" + FPS_id);
+            //        Console.WriteLine("count" + count);
+            //        for (int i = 0; i < count; i++)
+            //        {
+            //            string playerid = proto.GetString(start, ref start);
+            //            string opName = proto.GetString(start, ref start);
+            //            float op = proto.GetFloat(start, ref start);
+            //            Console.WriteLine("playerid=" + playerid + "  " + "opName=" + opName + " " + "op=" + op);
+            //        }
+            //        FPS.Add((ProtocolBytes)Proto);
+            //        return;
+            //    }
         }
         public void Start()
         {
@@ -80,16 +72,21 @@ namespace LockStepServer1._0.LockStep
         }
         public void SendTest(object sender, ElapsedEventArgs e)
         {
-            Console.WriteLine("timer");
+            S_Farmid++;
+            //Console.WriteLine("timer");
             ProtocolBytes proto = new ProtocolBytes();
             proto.AddData("Lockstep");
+            proto.AddData(S_Farmid);
+            if ((S_Farmid % 20) == 0)
+                proto.AddData(5);
+            proto.AddData(0);
             int COUNT = P_UDP_IP.Count;
-            Console.WriteLine(P_UDP_IP.Count);
+            //Console.WriteLine(P_UDP_IP.Count);
             for (int i = 0; i < COUNT; i++)
             {
                 try
                 {
-                    Console.WriteLine("fasong");
+                    Console.WriteLine(proto.ToString());
                     if (P_UDP_IP == null)
                         return;
                     UDP.instance.SocketSend(proto, P_UDP_IP[i]);

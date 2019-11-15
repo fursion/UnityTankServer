@@ -1,27 +1,28 @@
-﻿using System;
+﻿using LockStepServer1._0.Core;
+using LockStepServer1._0.Protocol;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TankServerTest.Core;
 
 namespace TankServerTest.Logic
 {   partial class HandlePlayerMsg
     {
         //获取房间列表
-        public void MsgGetRoomList(Player player,ProtocoBase protocoBase)
+        public void MsgGetRoomList(Player player,ProtocolBase protocoBase)
         {
             player.Send(RoomMgr.instance.GetRoomList());
-            Console.WriteLine("MsgGetRoomList flash "+player.id);
+            Console.WriteLine("MsgGetRoomList flash "+player.Name);
         }
         //创建房间
-        public void MsgCreatRoom(Player player,ProtocoBase protocoBase)
+        public void MsgCreatRoom(Player player,ProtocolBase protocoBase)
         {
-            ProtocoBytes proto = new ProtocoBytes();
+            ProtocolBytes proto = new ProtocolBytes();
             proto.Addstring("CreatRoom");
             if (player.tempData.status != PlayerTempData.Status.None)
             {
-                Console.WriteLine("MsgCreatRoom Fail"+player.id);
+                Console.WriteLine("MsgCreatRoom Fail"+player.Name);
                 proto.AddInt(-1);
                 player.Send(proto);
                 return;
@@ -30,21 +31,21 @@ namespace TankServerTest.Logic
             proto.AddInt(0);
             proto.AddInt(player.tempData.room.RoomID);
             player.Send(proto);
-            Console.WriteLine("MsgCreatRoom OK "+player.id);
+            Console.WriteLine("MsgCreatRoom OK "+player.Name);
         }
         //加入房间
-        public void MsgEnterRoom(Player player,ProtocoBase protocoBase)
+        public void MsgEnterRoom(Player player,ProtocolBase protocoBase)
         {
             int start = 0;
-            ProtocoBytes proto = (ProtocoBytes)protocoBase;
+            ProtocolBytes proto = (ProtocolBytes)protocoBase;
             string protoname = proto.GetString(start, ref start);
             int index = proto.GetInt(start, ref start);
-            Console.WriteLine("[收到]MsgEnterRoom "+player.id+" "+index);
-            ProtocoBytes protoRet = new ProtocoBytes();
+            Console.WriteLine("[收到]MsgEnterRoom "+player.Name+" "+index);
+            ProtocolBytes protoRet = new ProtocolBytes();
             protoRet.Addstring("EnterRoom");
             if (index < 0 || index >= RoomMgr.instance.list.Count)
             {
-                Console.WriteLine("MsgEnterRoom index error "+player.id);
+                Console.WriteLine("MsgEnterRoom index error "+player.Name);
                 protoRet.AddInt(-1);
                 protoRet.AddInt(index);
                 player.Send(protoRet);
@@ -53,7 +54,7 @@ namespace TankServerTest.Logic
             Room room = RoomMgr.instance.list[index];
             if (room.status != Room.Status.Prepare)
             {
-                Console.WriteLine("MsgEnterRoom status error "+player.id);
+                Console.WriteLine("MsgEnterRoom status error "+player.Name);
                 protoRet.AddInt(-1);
                 player.Send(protoRet);
                 return;
@@ -67,30 +68,30 @@ namespace TankServerTest.Logic
             }
             else
             {
-                Console.WriteLine("MsgEnterRoom Maxplayer error " + player.id);
+                Console.WriteLine("MsgEnterRoom Maxplayer error " + player.Name);
                 protoRet.AddInt(-1);
                 player.Send(protoRet);
             }
         }
         //获取房间信息
-        public void MsgGetRoomInfo(Player player,ProtocoBase protocoBase)
+        public void MsgGetRoomInfo(Player player,ProtocolBase protocoBase)
         {
             if (player.tempData.status != PlayerTempData.Status.Room)
             {
-                Console.WriteLine("MsgGetRoomInfo status err "+player.id);
+                Console.WriteLine("MsgGetRoomInfo status err "+player.Name);
                 return;
             }
             Room room = player.tempData.room;
             player.Send(room.GetRoomInfo());
         }
         //离开房间
-        public void MsgLeaveRoom(Player player,ProtocoBase protocoBase)
+        public void MsgLeaveRoom(Player player,ProtocolBase protocoBase)
         {
-            ProtocoBytes proto = new ProtocoBytes();
+            ProtocolBytes proto = new ProtocolBytes();
             proto.Addstring("LeaveRoom");
             if (player.tempData.status != PlayerTempData.Status.Room)
             {
-                Console.WriteLine("MsgLeaveRoom statu err "+player.id);
+                Console.WriteLine("MsgLeaveRoom statu err "+player.Name);
                 proto.AddInt(-1);
                 player.Send(proto);
                 return;

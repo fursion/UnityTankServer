@@ -3,66 +3,77 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TankServerTest.Core;
+using LockStepServer1._0.Core;
+using LockStepServer1._0.Protocol;
+using LockStepServer1._0.NetWorking;
 
-namespace TankServerTest.Logic
+namespace LockStepServer1._0.Logic
 {
     partial class HandlePlayerMsg
     {
-        public void MsgGetScore(Player player,ProtocoBase protocoBase)
+        public void MsgGetScore(Player player, ProtocolBase protocoBase)
         {
-            ProtocoBytes protocoBytes = new ProtocoBytes();
+            ProtocolBytes protocoBytes = new ProtocolBytes();
             protocoBytes.Addstring("GetScore");
             protocoBytes.AddInt(player.data.score);
             player.Send(protocoBytes);
-            Console.WriteLine("MsgGetScore"+player.id,player.data.score);
+            Console.WriteLine("MsgGetScore" + player.Name, player.data.score);
         }
-        public void MsgAddScore(Player player,ProtocoBase protocoBase)
+        public void MsgAddScore(Player player, ProtocolBase protocoBase)
         {
             int start = 0;
-            ProtocoBytes protocoBytes = (ProtocoBytes)protocoBase;
+            ProtocolBytes protocoBytes = (ProtocolBytes)protocoBase;
             string protoName = protocoBytes.GetString(start, ref start);
-            player.data.score +=1;
-            Console.WriteLine(protoName+"[MsgAddScore] "+player.id+" "+player.data.score.ToString());
+            player.data.score += 1;
+            Console.WriteLine(protoName + "[MsgAddScore] " + player.Name + " " + player.data.score.ToString());
         }
-        public void MsgGetList(Player player,ProtocoBase protocoBase)
+        public void MsgGetList(Player player, ProtocolBase protocoBase)
         {
             Scene.instance.SendPlayerList(player);
-        } 
-        public void MsgUpdateInfo(Player player,ProtocoBase protocoBase)
+        }
+        public void MsgUpdateInfo(Player player, ProtocolBase protocoBase)
         {
             int start = 0;
-            ProtocoBytes protoc = (ProtocoBytes)protocoBase;
+            ProtocolBytes protoc = (ProtocolBytes)protocoBase;
             string protoName = protoc.GetString(start, ref start);
             float x = protoc.GetFloat(start, ref start);
             float y = protoc.GetFloat(start, ref start);
             float z = protoc.GetFloat(start, ref start);
             int score = player.data.score;
-            Scene.instance.UpdateInfo(player.id, x, y, z, score);
-            ProtocoBytes protoRet = new ProtocoBytes();
+            Scene.instance.UpdateInfo(player.Name, x, y, z, score);
+            ProtocolBytes protoRet = new ProtocolBytes();
             protoRet.Addstring("UpdateInfo");
-            protoRet.Addstring(player.id);
+            protoRet.Addstring(player.Name);
             protoRet.AddFloat(x);
             protoRet.AddFloat(y);
             protoRet.AddFloat(z);
             protoRet.AddInt(score);
-            ServerNet.instance.Broadcast(protoRet);
+            NMC.instance.Broadcast(protoRet);
         }
         //获取玩家信息
-        public void MsgGetAchieve(Player player,ProtocoBase protocoBase)
+        public void MsgGetAchieve(Player player, ProtocolBase protocoBase)
         {
-            ProtocoBytes protoRet = new ProtocoBytes();
+            ProtocolBytes protoRet = new ProtocolBytes();
             protoRet.Addstring("GetAchieve");
-            protoRet.Addstring(player.id);
+            protoRet.Addstring(player.Name);
             player.Send(protoRet);
-            Console.WriteLine("MsgGetAchieve" + player.id);
+            Console.WriteLine("MsgGetAchieve" + player.Name);
         }
-        public void MsgGetPing(Player player,ProtocoBase protocoBase)
+        public void MsgGetPing(Player player, ProtocolBase protocoBase)
         {
-            ProtocoBytes protoc = new ProtocoBytes();
+            ProtocolBytes protoc = new ProtocolBytes();
             protoc.Addstring("GetPing");
             player.Send(protoc);
-            Console.WriteLine("MsgGetPing" + player.id);
+            Console.WriteLine("MsgGetPing" + player.Name);
+        }
+        public void MsgMSG(ProtocolBytes bytes)
+        {
+            Console.WriteLine(bytes.GetDecode()[1]);
+            switch (bytes.GetDecode()[1])
+            {
+                case "TeamMSG": break;
+                case "WrodMSG": World.instance.NewMSG(bytes); break;
+            }
         }
     }
 }

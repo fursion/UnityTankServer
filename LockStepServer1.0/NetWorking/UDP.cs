@@ -5,9 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
+using LockStepServer1._0.Core;
 using LockStepServer1._0.Protocol;
+using LockStepServer1._0.LockStep;
 using System.Threading;
 using System.Reflection;
+using LockStepServer1._0.Logic;
 
 namespace LockStepServer1._0.NetWorking
 {
@@ -26,7 +29,7 @@ namespace LockStepServer1._0.NetWorking
         private int msglenght;
         public ProtocolBase MsgProto = new ProtocolBytes();
         public List<EndPoint> UDPList = new List<EndPoint>();
-        public ReceFPS receFPS = new ReceFPS();
+        public  AssembleFrame ASSF = new AssembleFrame();
         private HandFPSMsg handFPSMsg = new HandFPSMsg();
         Thread connectThread;//线程
         public UDP()
@@ -105,7 +108,7 @@ namespace LockStepServer1._0.NetWorking
         private void HangMsg(ProtocolBase protoc)
         {
             ProtocolBytes Data = (ProtocolBytes)protoc;
-            object[] dat = Data.Decode();
+            object[] dat = Data.GetDecode();
             string MsgName = dat[0].ToString();
             Console.WriteLine(MsgName);
             string methodname = "Msg" + MsgName;
@@ -117,7 +120,7 @@ namespace LockStepServer1._0.NetWorking
                 //proto.Addstring("FPS");
                 //SocketSend(proto, clientEnd);
                 //Console.WriteLine("发送fps");
-                FPSMgr.instance.P_UDP_IP.Add(clientEnd);
+                LockStepMGR.instance.P_UDP_IP.Add(clientEnd);
                 //RoomMgr.instance.list[roomid].P_UDP_IP.Add(clientEnd);
             }
             else if (MsgName == "AAA")
@@ -125,9 +128,9 @@ namespace LockStepServer1._0.NetWorking
                 ProtocolBytes bytes = new ProtocolBytes();
                 bytes.AddData("Addp");
                 bytes.AddData(dat[1].ToString());
-                for (int i = 0; i < FPSMgr.instance.P_UDP_IP.Count; i++)
+                for (int i = 0; i < LockStepMGR.instance.P_UDP_IP.Count; i++)
                 {
-                    SocketSend(bytes, FPSMgr.instance.P_UDP_IP[i]);
+                    SocketSend(bytes, LockStepMGR.instance.P_UDP_IP[i]);
                 }
             }
             //else if (MsgName == "Start")
@@ -136,7 +139,7 @@ namespace LockStepServer1._0.NetWorking
             //}
             else if (MsgName == "FPS")
             {
-                if (fps_id < receFPS.FPS_id - 1)
+                if (fps_id < ASSF.FPS_id - 1)
                 {
                     RoomMgr.instance.list[roomid].Rep_Send_List.Add(clientEnd, fps_id);
                 }

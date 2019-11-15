@@ -11,13 +11,17 @@ namespace LockStepServer1._0.Protocol
     {
         private static byte[] bytes;
         private static bool tp;
-        public static object[] Decode(this ProtocolBytes T)
+        public static object ProtocolName(this ProtocolBytes T)
+        {
+            return T.GetDecode()[0];
+        }
+        public static object[] GetDecode(this ProtocolBytes T)
         {
             Int32 start = 0;
             Int32 end = 0;
-            return Decode(T, start, ref end);
+            return GetDecode(T, start, ref end);
         }
-        public static void Decode(this byte[] vs)
+        public static void GetDecode(this byte[] vs)
         {
             Int32 len = vs.Length;
             string d = "";
@@ -25,9 +29,6 @@ namespace LockStepServer1._0.Protocol
             {
                 d = d + " " + vs[i].ToString();
             }
-#if _CLENT_
-            Debug.Log(d);
-#endif
         }
         public static object Decount(this ProtocolBytes T, Int32 start, ref int end)
         {
@@ -46,45 +47,26 @@ namespace LockStepServer1._0.Protocol
             end = (Int32)vs[2];
             return d;
         }
-        public static object[] Decode(this ProtocolBytes T, Int32 start, ref Int32 end)
+        public static object[] GetDecode(this ProtocolBytes T, Int32 start, ref Int32 end)
         {
             object[] da;
             List<object> list = new List<object>();
             Int32 count = (int)Decount(T, start, ref start);
-#if _CLENT_
-            Debug.Log("decount=" + count);
-#endif
             for (int i = 0; i < count; i++)
             {
                 Int32 typelen = BitConverter.ToInt32(T.bytes, start);
-#if _CLENT_
-                Debug.Log(start + sizeof(Int32) + typelen);
-#endif
                 if (T.bytes.Length < start + sizeof(Int32) + typelen)
                     return da = new object[] { 100 };
-#if _CLENT_
-                Debug.Log(T.bytes.Length);
-                Debug.Log("ceshi"+i);
-#endif
                 string typen = Encoding.UTF8.GetString(T.bytes, start + sizeof(Int32), typelen);
                 start = start + sizeof(Int32) + typelen;
-#if _CLENT_
-                Debug.Log("typen= " + typen);
-#endif
                 string methodname = "Get" + typen;
                 Type tag = typeof(ProtocolDecod);
                 MethodInfo method = tag.GetMethod(methodname);
                 if (method == null)
                     return da = new object[] { 2 };
-#if _CLENT_
-                Debug.Log("START=" + start+"  "+i);
-#endif
                 object[] vs = { T.bytes, start, start };//添加函数参数
                 object d = method.Invoke(tag, vs);
                 start = end = (Int32)vs[2];
-#if _CLENT_
-                Debug.Log(end);
-#endif
                 list.Add(d);
             }
             return list.ToArray();
@@ -106,7 +88,7 @@ namespace LockStepServer1._0.Protocol
                 count = byteTypelen.Concat(DataType).Concat(MsgcountByte).ToArray();
                 indexlen = count.Length;
                 T.bytes = count;
-                T.bytes.Decode();
+                T.bytes.GetDecode();
             }
             Int32 Msgcount = (int)T.Decount(0, ref indexlen);
             string type = ob.GetType().ToString();
@@ -121,7 +103,7 @@ namespace LockStepServer1._0.Protocol
             T.bytes = (byte[])vs[2];
             Msgcount = (Int32)vs[3];
             UpdataCount(T.bytes, Msgcount, indexlen);//更新Msgcount
-            T.bytes.Decode();
+            T.bytes.GetDecode();
             return tp;
         }
         public static void AddString(string type, string data, ref byte[] targetbytes, ref Int32 Msgcount)
@@ -169,6 +151,25 @@ namespace LockStepServer1._0.Protocol
                 targetbytes = targetbytes.Concat(tylenbyte).Concat(typebyte).Concat(databyte).ToArray();
             Msgcount++;
             tp = true;
+        }
+        public static void AddInt64(string type, long data, ref byte[] targetbytes, ref Int32 Msgcount)
+        {
+            Int32 typelenght = type.Length;
+            byte[] tylenbyte = BitConverter.GetBytes(typelenght);//数据类型名长度
+            byte[] typebyte = Encoding.UTF8.GetBytes(type);//数据类型
+            byte[] databyte = BitConverter.GetBytes(data);//数据
+            if (targetbytes == null)
+                targetbytes = tylenbyte.Concat(typebyte).Concat(databyte).ToArray();
+            else
+                targetbytes = targetbytes.Concat(tylenbyte).Concat(typebyte).Concat(databyte).ToArray();
+            Msgcount++;
+            tp = true;
+        }
+        public static Int64 GetInt64(byte[] vs, Int32 start, ref Int32 end)
+        {
+            Int64 data = BitConverter.ToInt64(vs, start);
+            end = start + sizeof(Int32);
+            return data;
         }
         public static string GetString(byte[] vs, Int32 start, ref Int32 end)
         {
@@ -223,6 +224,15 @@ namespace LockStepServer1._0.Protocol
                 vs[ta + i] = t[a + i];
                 s += t[a + i].ToString();
             }
+        }
+        public static void PrintBytes(this object[] OB)
+        {
+            string s = "";
+            for (int i = 0; i < OB.Length; i++)
+            {
+                s += OB[i].ToString();
+            }
+            Console.WriteLine(s);
         }
     }
 }

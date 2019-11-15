@@ -1,4 +1,5 @@
 ﻿using LockStepServer1._0.Protocol;
+using LockStepServer1._0.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +14,7 @@ namespace LockStepServer1._0.NetWorking
         public Socket socket;
         public byte[] readbuffer;
         public bool isUse = false;
-        public const int BUFFER_SIZE = 1024;
+        public const int BUFFER_SIZE = 2048;
         public int buffercount = 0;
 
         //粘包分包
@@ -21,7 +22,7 @@ namespace LockStepServer1._0.NetWorking
         public Int32 msgLenght = 0;
         //心跳协议
         public long lastTickTime = long.MinValue;
-       // public Player Player;
+        public Player Player;//用户数据
         public TCP()
         {
             readbuffer = new byte[BUFFER_SIZE];
@@ -48,25 +49,32 @@ namespace LockStepServer1._0.NetWorking
 
         public void Send(ProtocolBytes protoco)
         {
-            ServerNet.instance.Send(this, protoco);
+            NMC.instance.Send(this, protoco);
         }
 
         public void Close()
         {
+            if (socket == null)
+                return;
+            if (!socket.Connected)
+                return;
             if (!isUse)
             {
                 return;
             }
-            if (Player == null)
+            if (Player != null)
             {
                 //处理玩家
-                Console.WriteLine("处理玩家");
-                return;
+                Player.Close();
+                Player = null;
+                Console.WriteLine("处理玩家[保存玩家数据]");
+                //return;
             }
             Console.WriteLine("断开连接" + GetAddress());
             socket.Shutdown(SocketShutdown.Both);
             socket.Close();
             isUse = false;
+           
         }
     }
 }
