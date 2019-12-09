@@ -2,14 +2,61 @@
 using System;
 using LockStepServer1._0.NetWorking;
 using LockStepServer1._0.Core;
-using LockStepServer1._0.Room.Team;
+using LockStepServer1._0.ROOM.Team;
 using Newtonsoft.Json;
-using LockStepServer1._0.Room;
+using LockStepServer1._0.ROOM;
+using System.Threading;
+using System.Web.Security;
 
 namespace LockStepServer1._0.Logic
 {
     class HandleConnMsg
     {
+        public void MsgReConnect(TCP conn, ProtocolBase proto)
+        {
+            try
+            {
+                ProtocolBytes bytes = (ProtocolBytes)proto;
+                object[] vs = bytes.GetDecode();
+                string Openid = vs[1].ToString();
+                string ReConnectCheckCode = vs[2].ToString();
+                for (int i = 0; i < NMC.instance.tcps.Length; i++)
+                {
+                    if (NMC.instance.tcps[i] == null)
+                        continue;
+                    if (NMC.instance.tcps[i].Player == null)
+                        continue;
+                    if (NMC.instance.tcps[i].Player.Openid == Openid)
+                    {
+                        if (NMC.instance.tcps[i].Player.ReConnectCheckCode == null || NMC.instance.tcps[i].Player.ReConnectCheckCode != ReConnectCheckCode)
+                        {
+                            Console.WriteLine("ReConnection Check failed");
+                            NMC.instance.CloseTCP(conn);
+                            return;
+                        }
+                        TCP NewTCP = NMC.instance.tcps[i];
+                        conn.Player = NewTCP.Player;
+                        conn.Player.conn = conn;
+                        NMC.instance.tcps[i] = null;
+                        conn.Player.ReConnectCheckCode = Membership.GeneratePassword(20, 0);
+                        ProtocolBytes bytes1 = new ProtocolBytes();
+                        bytes1.AddData("ReConnectRet");
+                        bytes1.AddData(1);
+                        bytes1.AddData(conn.Player.ReConnectCheckCode);
+                        conn.Send(bytes1);
+                        return;
+                    }
+                }
+                Console.WriteLine(" This User Not Find ");
+                NMC.instance.CloseTCP(conn);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message + " ReConnect");
+            }
+
+
+        }
         public void MsgFindUser(string NickName)
         {
 
@@ -68,75 +115,82 @@ namespace LockStepServer1._0.Logic
                 case "WorldMSG": World.instance.NewMSG(bytes); break;
             }
         }
-        //登录    
-        public void MsgCheckOpenid(TCP conn, ProtocolBase protocoBase)
+        /// <summary>
+        /// 登录校验
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="protocoBase"></param>
+        public void MsgCheckOpenid(TCP conn, ProtocolBase protocoBase)//登录校验
         {
-            try
+            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
+            object[] vs = bytes.GetDecode();
+            string Openid = vs[1].ToString();
+            ProtocolBytes RetBytes = new ProtocolBytes();
+            RetBytes.AddData(ProtocolConst.CheckOpenid);
+            Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, vs); }));
+            ChechOpenidT.Name = Openid;
+            ChechOpenidT.Start();
+        }
+        public static void TrueCheckOpenid(TCP conn, object[] vs)
+        {
+            string Openid = vs[1].ToString();
+            ProtocolBytes RetBytes = new ProtocolBytes();
+            RetBytes.AddData(ProtocolConst.CheckOpenid);
+            if ((int)vs[2] == ProtocolConst.False)
             {
-                ProtocolBytes bytes = (ProtocolBytes)protocoBase;
-                object[] vs = bytes.GetDecode();
-                string Openid = vs[1].ToString();
-                ProtocolBytes RetBytes = new ProtocolBytes();
-                RetBytes.AddData(ProtocolConst.CheckOpenid);
-                if (!DataMgr.instance.CheckOpenid(Openid))
+                if (Player.Kickoff(Openid, false))
                 {
-                    RetBytes.AddData(ProtocolConst.False);
+                    RetBytes.AddData(2);
                     conn.Send(RetBytes);
                     return;
                 }
-                if ((int)vs[2] == ProtocolConst.False)
+            }
+            else
+            {
+                if (Player.Kickoff(Openid, true))
                 {
-                    if (Player.Kickoff(Openid, false))
-                    {
-                        RetBytes.AddData(2);
-                        conn.Send(RetBytes);
-                        return;
-                    }
-                }
-                else
-                {
-                    if (Player.Kickoff(Openid, true))
-                    {
-                        RetBytes.AddData(2);
-                        conn.Send(RetBytes);
-                        return;
-                    }
-                }
-                PlayerData playerData = DataMgr.instance.GetPlayerData(Openid);
-                if (playerData == null)
-                {
-                    RetBytes.AddData(-1);
+                    RetBytes.AddData(2);
                     conn.Send(RetBytes);
                     return;
                 }
-                conn.Player = new Player(Openid, conn)
-                {
-                    data = playerData
-                };
-                RetBytes.AddData(ProtocolConst.True);
-                conn.Player.UserData = DataMgr.instance.GetUserData(conn.Player.Openid);
-                Friend friend = FriendMC.A.InitFriendListInfo(conn.Player);
-                if (friend.GoodList.Keys.Count != 0)
-                {
-                    ProtocolBytes onlineRet = new ProtocolBytes();
-                    onlineRet.AddData(FriendVar.OnlineNotice);
-                    onlineRet.AddData(conn.Player.Openid);
-                    foreach (string id in friend.GoodList.Keys)
-                    {
-                        if (FriendMC.A.OnlinePlayerList.ContainsKey(id))
-                            FriendMC.A.OnlinePlayerList[id].Send(onlineRet);
-                    }
-                }
-                string FriendListStr = JsonConvert.SerializeObject(friend);
-                RetBytes.AddData(FriendListStr);
+            }
+            PlayerData playerData = DataMgr.instance.GetPlayerData(Openid);
+            if (playerData == null)
+            {
+                RetBytes.AddData(-1);
                 conn.Send(RetBytes);
-                Console.WriteLine("登录成功******发送   ");
+                return;
             }
-            catch (Exception e)
+            conn.Player = new Player(Openid, conn)
             {
-                Console.WriteLine("MsgCheckOpenid  " + e.Message);
+                data = playerData
+            };
+            conn.Player.ReConnectCheckCode = Membership.GeneratePassword(20, 0);
+            RetBytes.AddData(ProtocolConst.True);//Success
+            conn.Player.UserData = DataMgr.instance.GetUserData(conn.Player.Openid);
+            Friend friend = FriendMC.A.InitFriendListInfo(conn.Player);
+            if (friend.GoodList.Keys.Count != 0)
+            {
+                ProtocolBytes onlineRet = new ProtocolBytes();
+                onlineRet.AddData(FriendVar.OnlineNotice);
+                onlineRet.AddData(conn.Player.Openid);
+                foreach (string id in friend.GoodList.Keys)
+                {
+                    if (FriendMC.A.OnlinePlayerList.ContainsKey(id))
+                        FriendMC.A.OnlinePlayerList[id].Send(onlineRet);
+                }
             }
-
+            string FriendListStr = JsonConvert.SerializeObject(friend);
+            RetBytes.AddData(FriendListStr);
+            ServerMC.This.GetServerInfo(RetBytes, conn);
+            Console.WriteLine("登录成功******发送   ");
+        }
+        public static void FalseCheckOpenid(TCP conn)
+        {
+            ProtocolBytes RetBytes = new ProtocolBytes();
+            RetBytes.AddData(ProtocolConst.CheckOpenid);
+            RetBytes.AddData(ProtocolConst.False);
+            conn.Send(RetBytes);
         }
         public void MsgTeamInvitation(TCP conn, ProtocolBase protocoBase)
         {
@@ -150,60 +204,13 @@ namespace LockStepServer1._0.Logic
                 Inret.AddData(TeamVar.Team_Invitation);
                 Inret.AddData("3V3");
                 Inret.AddData(TeamID);
-                
+
                 UserData UD = new UserData();
                 UD = DataMgr.instance.GetUserData(Openid);
                 string UDStr = JsonConvert.SerializeObject(UD);
                 Inret.AddData(UDStr);
                 FriendMC.A.OnlinePlayerList[Openid].Send(Inret);
             }
-        }
-        public void MsgLogin(TCP conn, ProtocolBase protocoBase)
-        {
-            ProtocolBytes protoco = (ProtocolBytes)protocoBase;
-            object[] vs = protoco.GetDecode();
-            string protoName = vs[0].ToString();
-            string id = vs[1].ToString();
-            string pw = vs[2].ToString();
-            string strFromat = "[收到登录协议]" + conn.GetAddress();
-            Console.WriteLine(strFromat + "用户名" + id + "密码" + pw);
-
-            ProtocolBytes protocoRet = new ProtocolBytes();
-            protocoRet.AddData("Login");
-            if (!DataMgr.instance.CheckPassWordAndId(id, pw))
-            {
-                protocoRet.AddData(-1);
-                conn.Send(protocoRet);
-                Console.WriteLine("登录失败*密码错误");
-                return;
-            }
-            //是否已经登录
-            ProtocolBytes protocoLogout = new ProtocolBytes();
-            protocoLogout.AddData("Logout");
-            if (Player.Kickoff(id, false))
-            {
-                protocoRet.AddData(-1);
-                Console.WriteLine("重复登录");
-                conn.Send(protocoRet);
-                return;
-            }
-            PlayerData playerData = DataMgr.instance.GetPlayerData(id);
-            if (playerData == null)
-            {
-                protocoRet.AddData(-1);
-                conn.Send(protocoRet);
-                Console.WriteLine("没有玩家数据");
-                return;
-            }
-            conn.Player = new Player(id, conn)
-            {
-                data = playerData
-            };
-            NMC.instance.handlePlayerEvent.OnLogin(conn.Player);
-            protocoRet.AddData(0);
-            conn.Send(protocoRet);
-            Console.WriteLine("登录成功******发送   " + protocoRet.GetDecode().Length);
-            return;
         }
         public void MsgLogout(TCP conn, ProtocolBase protocoBase)
         {
@@ -213,7 +220,7 @@ namespace LockStepServer1._0.Logic
             if (conn.Player == null)
             {
                 conn.Send(protocoBytes);
-                conn.Close();
+                NMC.instance.CloseTCP(conn);
             }
             else
             {
@@ -264,10 +271,6 @@ namespace LockStepServer1._0.Logic
         public void MsgJSONTEST(TCP conn, ProtocolBase protocoBase)
         {
             Friend friend = new Friend();
-            //friend.GoodList.Add("151353");
-            //friend.GoodList.Add("ahcakcakc");
-            //friend.BlackList.Add("sgssdgsg");
-            //friend.ApplyList.Add("skcnak");
             string jsonstr = JsonConvert.SerializeObject(friend);
             Console.WriteLine("JSON测试    " + jsonstr);
             ProtocolBytes bytes = new ProtocolBytes();
@@ -304,7 +307,8 @@ namespace LockStepServer1._0.Logic
         }
         public void GetFriendListInfo(TCP conn, object[] OB)
         {
-            FriendMC.A.GetFriendListInfo(conn.Player);
+            Thread GetfriendT = new Thread(new ThreadStart(delegate { FriendMC.A.GetFriendListInfo(conn.Player); }));
+            GetfriendT.Start();
         }
         public void FindUser(TCP conn, object[] OB)
         {

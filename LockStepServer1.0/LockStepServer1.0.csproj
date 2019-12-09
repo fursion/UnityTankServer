@@ -12,20 +12,24 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <PublishUrl>publish\</PublishUrl>
+    <IsWebBootstrapper>true</IsWebBootstrapper>
+    <PublishUrl>ftp://fursion.cn/LockStepServer/</PublishUrl>
     <Install>true</Install>
-    <InstallFrom>Disk</InstallFrom>
-    <UpdateEnabled>false</UpdateEnabled>
+    <InstallFrom>Web</InstallFrom>
+    <UpdateEnabled>true</UpdateEnabled>
     <UpdateMode>Foreground</UpdateMode>
     <UpdateInterval>7</UpdateInterval>
     <UpdateIntervalUnits>Days</UpdateIntervalUnits>
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>0</ApplicationRevision>
+    <InstallUrl>https://fursion.cn:433/LockStepServer/</InstallUrl>
+    <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
+    <WebPage>publish.htm</WebPage>
+    <ApplicationRevision>38</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
+    <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -47,17 +51,36 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ManifestCertificateThumbprint>D67168D1C850F93D9450B5F0A956179F94B5E094</ManifestCertificateThumbprint>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestKeyFile>LockStepServer1.0_TemporaryKey.pfx</ManifestKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateManifests>true</GenerateManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignManifests>true</SignManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>LockStepServer1._0.Program</StartupObject>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>servericon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="MySql.Data, Version=8.0.16.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>C:\Program Files (x86)\MySQL\MySQL Connector Net 8.0.16\Assemblies\v4.5.2\MySql.Data.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>H:\Json120r2\Bin\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -72,11 +95,12 @@
     <Compile Include="Core\PlayerData.cs" />
     <Compile Include="Core\PlayerTempData.cs" />
     <Compile Include="Core\Room.cs" />
-    <Compile Include="Core\RoomMgr.cs" />
     <Compile Include="Core\Sys.cs" />
+    <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="JsontEST.cs" />
     <Compile Include="LockStep\AssembleFrame.cs" />
     <Compile Include="LockStep\LockStepMGR.cs" />
+    <Compile Include="LockStep\LogicFrame.cs" />
     <Compile Include="Logic\HandFPSMsg.cs" />
     <Compile Include="Logic\HandleBattleMsg.cs" />
     <Compile Include="Logic\HandleConnMsg.cs" />
@@ -87,25 +111,37 @@
     <Compile Include="Logic\ScenePlayer.cs" />
     <Compile Include="Logic\World.cs" />
     <Compile Include="NetWorking\NMC.cs" />
+    <Compile Include="NetWorking\ServerConn.cs" />
+    <Compile Include="NetWorking\ServerMC.cs" />
     <Compile Include="NetWorking\TCP.cs" />
     <Compile Include="NetWorking\UDP.cs" />
     <Compile Include="Core\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
     <Compile Include="Protocol\ProtocolBase.cs" />
     <Compile Include="Protocol\ProtocolBytes.cs" />
     <Compile Include="Protocol\ProtocolDecod.cs" />
-    <Compile Include="Room\BattleROOM\BattleROOM.cs" />
-    <Compile Include="Room\FriendMC.cs" />
-    <Compile Include="Room\Match.cs" />
-    <Compile Include="Room\Room.cs" />
-    <Compile Include="Room\RoomBase.cs" />
-    <Compile Include="Room\RoomMC.cs" />
-    <Compile Include="Room\Team\Team.cs" />
-    <Compile Include="Room\Team\TeamMC.cs" />
+    <Compile Include="ROOM\BattleROOM\BattleROOM.cs" />
+    <Compile Include="ROOM\FriendMC.cs" />
+    <Compile Include="ROOM\Match.cs" />
+    <Compile Include="ROOM\Room.cs" />
+    <Compile Include="ROOM\RoomBase.cs" />
+    <Compile Include="ROOM\RoomMC.cs" />
+    <Compile Include="ROOM\Team\Team.cs" />
+    <Compile Include="ROOM\Team\TeamMC.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
       <SubType>Designer</SubType>
+    </None>
+    <None Include="LockStepServer1.0_TemporaryKey.pfx" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -119,6 +155,9 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="servericon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

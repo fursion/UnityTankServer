@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using LockStepServer1._0.Core;
 using LockStepServer1._0.NetWorking;
 using LockStepServer1._0.Protocol;
-using LockStepServer1._0.Room;
-using LockStepServer1._0.Room.Team;
+using LockStepServer1._0.ROOM;
+using LockStepServer1._0.ROOM.Team;
 using Newtonsoft.Json;
 
 namespace LockStepServer1._0.Logic
@@ -19,6 +19,10 @@ namespace LockStepServer1._0.Logic
             ProtocolBytes bytes = (ProtocolBytes)protocoBase;
             object[] vs = bytes.GetDecode();
             TeamMC.A.TeamInvitation(conn.Player, vs);
+        }
+        public void MsgTeamStart(TCP conn, ProtocolBase protocoBase)
+        {
+
         }
         public void MsgIntoTeam(TCP conn, ProtocolBase protocoBase)
         {

@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LockStepServer1._0.Room.Team
+namespace LockStepServer1._0.ROOM.Team
 {
     class TeamMC
     {

@@ -11,7 +11,7 @@ using LockStepServer1._0.Protocol;
  * E-Mail fursion@fursion.cn
  * Copyright (c) 2019 fursion.All rights reserved.
  */
-namespace LockStepServer1._0.Room
+namespace LockStepServer1._0.ROOM
 {
     class FriendMC
     {
@@ -199,51 +199,43 @@ namespace LockStepServer1._0.Room
                 player.Send(bytes);
             }
         }
-        public Friend GetFriendListInfo(Player player)
+        public void GetFriendListInfo(Player player)
         {
-            try
+            DataMgr.instance.GetFriend(player);
+        }
+        public void RetFriendList(Friend friend, Player player)
+        {
+            AddOnlinePlayer(player.Openid, player, friend);
+            if (friend.GoodList.Keys.Count != 0)
             {
-                Friend friend = DataMgr.instance.GetFriend(player.Openid);
-                AddOnlinePlayer(player.Openid, player, friend);
-                if (friend.GoodList.Keys.Count != 0)
+                foreach (string id in friend.GoodList.Keys)
                 {
-                    foreach (string id in friend.GoodList.Keys)
+                    friend.GoodList[id].data = DataMgr.instance.GetUserData(id);
+                    if (OnlinePlayerList.ContainsKey(id))
                     {
-                        friend.GoodList[id].data = DataMgr.instance.GetUserData(id);
-                        if (OnlinePlayerList.ContainsKey(id))
-                        {
-                            friend.GoodList[id].OnlineState = true;
-                        }
+                        friend.GoodList[id].OnlineState = true;
                     }
                 }
-                if (friend.ApplyList.Keys.Count != 0)
-                {
-                    foreach (string id in friend.ApplyList.Keys)
-                    {
-                        friend.ApplyList[id].data = DataMgr.instance.GetUserData(id);
-                    }
-                }
-                if (friend.BlackList.Keys.Count != 0)
-                {
-                    foreach (string id in friend.BlackList.Keys)
-                    {
-                        friend.BlackList[id].data = DataMgr.instance.GetUserData(id);
-                    }
-                }
-                string FriendListStr = JsonConvert.SerializeObject(friend);
-                ProtocolBytes bytes = new ProtocolBytes();
-                bytes.AddData(FriendVar.GetFriendListInfo);
-                bytes.AddData(FriendListStr);
-                player.Send(bytes);
-                bytes.GetDecode().PrintBytes();
-                return friend;
             }
-            catch (Exception e)
+            if (friend.ApplyList.Keys.Count != 0)
             {
-                Console.WriteLine(e.Message + "  200");
-                return null;
+                foreach (string id in friend.ApplyList.Keys)
+                {
+                    friend.ApplyList[id].data = DataMgr.instance.GetUserData(id);
+                }
             }
-
+            if (friend.BlackList.Keys.Count != 0)
+            {
+                foreach (string id in friend.BlackList.Keys)
+                {
+                    friend.BlackList[id].data = DataMgr.instance.GetUserData(id);
+                }
+            }
+            string FriendListStr = JsonConvert.SerializeObject(friend);
+            ProtocolBytes bytes = new ProtocolBytes();
+            bytes.AddData(FriendVar.GetFriendListInfo);
+            bytes.AddData(FriendListStr);
+            player.Send(bytes);
         }
         public Friend InitFriendListInfo(Player player)
         {

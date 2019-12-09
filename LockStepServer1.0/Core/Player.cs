@@ -1,24 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using LockStepServer1._0.NetWorking;
 using LockStepServer1._0.Protocol;
-using LockStepServer1._0.Room.Team;
+using LockStepServer1._0.ROOM.Team;
 
+public enum PlayerState
+{
+    Playing,
+    None
+}
 namespace LockStepServer1._0.Core
 {
     class Player
     {
         public string Name;
         public string Openid;
+        public string ReConnectCheckCode;//断线重连校验码
+        public PlayerState NowState = PlayerState.None;//玩家状态
         public UserData UserData;
-        public string TeamOpenid;
+        public string TeamOpenid;//队伍ID
+        public string RoomID;//游戏房间ID，场次ID
         public Friend friend;
         public PlayerData data;
         public PlayerTempData tempData;
         public TCP conn;
+        public EndPoint UDPClient;
         public Player(string Openid, TCP conn)
         {
             this.Openid = Openid;
@@ -44,6 +54,8 @@ namespace LockStepServer1._0.Core
                     continue;
                 if (conns[i].Player.Openid == Openid)//防止重复登录
                 {
+                    if(conns[i].Player.NowState ==PlayerState.None)
+                        return !conns[i].Player.Logout();
                     lock (conns[i].Player)
                     {
                         if (T)
@@ -51,7 +63,7 @@ namespace LockStepServer1._0.Core
                             ProtocolBytes Logout = new ProtocolBytes();
                             Logout.AddData(ProtocolConst.Logout);
                             conns[i].Player.Send(Logout);
-                            return conns[i].Player.Logout();
+                            return !conns[i].Player.Logout();
                         }
                         else
                             return true;
@@ -66,16 +78,12 @@ namespace LockStepServer1._0.Core
             try
             {
                 NMC.instance.CloseTCP(conn);
-                conn.Close();
                 return true;
             }
             catch (Exception e)
             {
                 return false;
             }
-            //NMC.instance.CloseTCP(conn);
-            //conn.Close();
-            //return true;
         }
         public void Close()
         {

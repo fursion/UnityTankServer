@@ -17,7 +17,7 @@ public enum TeamType
     Combat,//自定义
     ordinary,//普通
 }
-namespace LockStepServer1._0.Room.Team
+namespace LockStepServer1._0.ROOM.Team
 {
     class TeamBase
     {
@@ -128,6 +128,11 @@ namespace LockStepServer1._0.Room.Team
                 }
             }
             return 0.ToString();
+        }
+        public void Start()
+        {
+            Core.Room room = new Core.Room();
+            room.Init(Players);
         }
     }
 }

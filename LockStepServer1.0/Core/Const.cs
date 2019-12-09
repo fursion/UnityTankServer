@@ -45,3 +45,7 @@ public static class FriendVar
     public static readonly string OnlineApply = "OnlineApply";
     public static readonly string OnlineNotice = "OnlineNotice";
 }
+public static class ServerMCVar
+{
+    public static readonly string ServerInfo = "ServerInfo";
+}

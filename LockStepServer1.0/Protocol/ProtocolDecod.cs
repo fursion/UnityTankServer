@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace LockStepServer1._0.Protocol
 {
@@ -178,9 +179,11 @@ namespace LockStepServer1._0.Protocol
             end = start + sizeof(Int32) + len;
             return da;
         }
-        public static void GetSingle()
+        public static float GetSingle(byte[] vs, Int32 start, ref Int32 end)
         {
-
+            Single data = BitConverter.ToSingle(vs, start);
+            end = start + sizeof(Int32);
+            return data;
         }
         public static Int32 GetInt32(byte[] vs, Int32 start, ref Int32 end)
         {
@@ -233,6 +236,16 @@ namespace LockStepServer1._0.Protocol
                 s += OB[i].ToString();
             }
             Console.WriteLine(s);
+        }
+        public static void ColorWord(this string Text,ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(Text);
+            Console.ResetColor();
+        }
+        public static string SerializableJSON(this object O)
+        {
+            return JsonConvert.SerializeObject(O);
         }
     }
 }

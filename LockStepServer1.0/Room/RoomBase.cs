@@ -1,5 +1,5 @@
 ﻿using LockStepServer1._0.Core;
-using LockStepServer1._0.Room.Team;
+using LockStepServer1._0.ROOM.Team;
 using System.Collections.Generic;
 public enum RoomState
 {
@@ -11,7 +11,7 @@ public enum RoomType
     Combat,//自定义
     ordinary,//普通
 }
-namespace LockStepServer1._0.Room
+namespace LockStepServer1._0.ROOM
 {
     class RoomBase
     {

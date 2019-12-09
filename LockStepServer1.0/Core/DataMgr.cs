@@ -10,6 +10,11 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using LockStepServer1._0.Protocol;
+using LockStepServer1._0.Logic;
+using LockStepServer1._0.NetWorking;
+using LockStepServer1._0.ROOM;
+using Newtonsoft.Json;
+using System.Threading;
 
 namespace LockStepServer1._0.Core
 {
@@ -24,6 +29,7 @@ namespace LockStepServer1._0.Core
     {
         MySqlConnection sqlconn;
         public static DataMgr instance;
+        public string Sqlconnstr;
         public DataMgr()
         {
             instance = this;
@@ -32,20 +38,22 @@ namespace LockStepServer1._0.Core
         /// <summary>
         /// 连接数据库
         /// </summary>
-        public void Connect()
+        public MySqlConnection Connect()
         {
             string connStr = "Database=TankTest;DataSource=cdb-ahtsamo2.cd.tencentcdb.com;";
             connStr += "User ID=root;Password=Dj199706194430;port=10000;";
+            Sqlconnstr = connStr;
             sqlconn = new MySqlConnection(connStr);
             try
             {
                 sqlconn.Open();
-                Console.WriteLine("[DataMgr] Connected!");
+                //Console.WriteLine("[DataMgr] Connected!");
+                return sqlconn;
             }
             catch (Exception e)
             {
-                Console.WriteLine("[DataMgr] Connect :" + e.Message);
-                return;
+                //Console.WriteLine("[DataMgr] Connect :" + e.Message);
+                return null;
             }
         }
         public bool IsSafeStr(string str)//正则表达式
@@ -56,18 +64,24 @@ namespace LockStepServer1._0.Core
         {
             if (!IsSafeStr(NickName))
                 return false;
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             string cmdStr = string.Format("select * from User where NickName='{0}';", NickName);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
+            MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
             try
             {
                 MySqlDataReader reader = cmd.ExecuteReader();
                 bool hasRows = reader.HasRows;
                 reader.Close();
+                mySql.Close();
+                cmd.Dispose();
                 return !hasRows;
             }
             catch (Exception e)
             {
                 Console.WriteLine("[DataMgr] CanRegister :" + e.Message);
+                mySql.Close();
+                cmd.Dispose();
                 return false;
             }
         }
@@ -87,47 +101,26 @@ namespace LockStepServer1._0.Core
                 return -1;
             }
         }
-        //注册    
-        public Tuple<bool, long> Registe(string NickName, string PW)
-        {
-            if (!IsSafeStr(NickName) || !IsSafeStr(PW))
-            {
-                Console.WriteLine("[DataMgr] Register : 使用非法字符！");
-                Tuple<bool, long> tup = new Tuple<bool, long>(false, 0);
-                return tup;
-            }
-            if (!CanRegister(NickName))
-            {
-                Console.WriteLine("[DataMgr] Register: 昵称已被使用！");
-                Tuple<bool, long> tup = new Tuple<bool, long>(false, 0);
-                return tup;
-            }
-            long PlayerID = ModPlayerID(MadePlayerID());
-            string cmdStr = string.Format("insert into User set NickName='{0}',PassWord='{1}',PlayerID='{2}';", NickName, PW, PlayerID);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
-            try
-            {
-                cmd.ExecuteNonQuery();
-                Console.WriteLine("注册成功");
-                Tuple<bool, long> tup = new Tuple<bool, long>(true, PlayerID);
-                return tup;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("[DataMgr] Register :" + e.Message);
-                Tuple<bool, long> tup = new Tuple<bool, long>(false, 0);
-                return tup;
-            }
-        }
+        /// <summary>
+        /// 注册
+        /// </summary>
+        /// <param name="Openid"></param>
+        /// <param name="NickName"></param>
+        /// <param name="UD"></param>
+        /// <returns></returns>
         public bool Register(string Openid, string NickName, UserData UD)
         {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             string cmdStr = string.Format("insert into User set Openid='{0}',NickName='{1}';", Openid, NickName);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
+            MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
             try
             {
                 cmd.ExecuteNonQuery();
                 CreatPlayer(NickName, Openid, UD);
-                Console.WriteLine("注册成功");
+                mySql.Close();
+                cmd.Dispose();
+                Console.WriteLine(Openid+" : 注册成功");
                 return true;
             }
             catch (Exception e)
@@ -147,18 +140,24 @@ namespace LockStepServer1._0.Core
         }
         public bool ChackPlayerID(long PlayerID)
         {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             string sqlstr = string.Format("select * from User where PlayerID='{0}';", PlayerID);
-            MySqlCommand cmd = new MySqlCommand(sqlstr, sqlconn);
+            MySqlCommand cmd = new MySqlCommand(sqlstr, mySql);
             try
             {
                 MySqlDataReader reader = cmd.ExecuteReader();
                 bool HasRows = reader.HasRows;
                 reader.Close();
+                mySql.Close();
+                cmd.Dispose();
                 return !HasRows;
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
+                cmd.Dispose();
+                mySql.Close();
                 return true;
             }
         }
@@ -200,9 +199,11 @@ namespace LockStepServer1._0.Core
             MemoryStream UDStream = new MemoryStream();
             formatter.Serialize(UDStream, UD);
             byte[] UDArr = UDStream.ToArray();
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             //写入数据库 
             string cmdStr = string.Format("insert into Player set ID='{0}',Data=@Data,Friend=@Friend,UserData=@UD ;", Openid);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
+            MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
             cmd.Parameters.Add("@Data", MySqlDbType.Blob);
             cmd.Parameters.Add("@Friend", MySqlDbType.Blob);
             cmd.Parameters.Add("@UD", MySqlDbType.Blob);
@@ -213,80 +214,83 @@ namespace LockStepServer1._0.Core
             {
                 cmd.ExecuteNonQuery();
                 Console.WriteLine("写入" + Openid);
+                cmd.Dispose();
+                mySql.Close();
                 return true;
             }
             catch (Exception e)
             {
                 Console.WriteLine("[DataMgr] CreatPlayer 写入" + e.Message);
+                cmd.Dispose();
+                mySql.Close();
                 return false;
             }
         }
         // public bool Friend()
         //检测用户名和密码
-        public bool CheckPassWordAndId(string NickName, string PW)
+        public void CheckOpenid(TCP Conn, object[] vs)
         {
-            if (!IsSafeStr(NickName) || !IsSafeStr(PW))
-                return false;
-            string cmdStr = string.Format("select * from User where NickName='{0}' and PassWord='{1}';", NickName, PW);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
-            try
-            {
-                MySqlDataReader reader = cmd.ExecuteReader();
-                bool HasRows = reader.HasRows;
-                reader.Close();
-                return HasRows;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("[DataMgr] CheckPassWordAndId :" + e.Message);
-                return false;
-            }
-        }
-        public bool CheckOpenid(string Openid)
-        {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
+            string Openid = vs[1].ToString();           
             string cmdStr = string.Format("select * from User where Openid='{0}';", Openid);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
+            MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
             try
             {
                 MySqlDataReader reader = cmd.ExecuteReader();
                 bool HasRows = reader.HasRows;
                 reader.Close();
-                return HasRows;
+                cmd.Dispose();
+                if (HasRows)
+                {
+                    HandleConnMsg.TrueCheckOpenid(Conn, vs);
+                }
+                else
+                {
+                    HandleConnMsg.FalseCheckOpenid(Conn);
+                }
             }
             catch (Exception e)
             {
-                Console.WriteLine("[DataMgr] CheckOpenid :" + e.Message);
-                return false;
+                cmd.Dispose();
+                Console.WriteLine("[DataMgr] CheckOpenid :" + e.Message+ Thread.CurrentThread.Name);
+                HandleConnMsg.FalseCheckOpenid(Conn);
             }
+            mySql.Close();
+            cmd.Dispose();
         }
         //获取角色数据
         public PlayerData GetPlayerData(string Openid)
         {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             PlayerData playerData = null;
-            //if (!IsSafeStr(Openid))
-            //    return playerData;
             string cmdStr = string.Format("select * from Player where ID='{0}';", Openid);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
             byte[] buffer = new byte[1];
-            try
+            using (MySqlCommand cmd = new MySqlCommand(cmdStr, mySql))
             {
-                MySqlDataReader reader = cmd.ExecuteReader();
-                if (!reader.HasRows)
+                
+                try
                 {
+                    MySqlDataReader reader = cmd.ExecuteReader();
+                    if (!reader.HasRows)
+                    {
+                        reader.Close();
+                        return playerData;
+                    }
+                    reader.Read();
+                    long len = reader.GetBytes(1, 0, null, 0, 0);
+                    buffer = new byte[len];
+                    reader.GetBytes(1, 0, buffer, 0, (int)len);
                     reader.Close();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("[DataMgr] GetPlayerData 查询" + e.Message + Thread.CurrentThread.Name);
                     return playerData;
                 }
-                reader.Read();
-                long len = reader.GetBytes(1, 0, null, 0, 0);
-                buffer = new byte[len];
-                reader.GetBytes(1, 0, buffer, 0, (int)len);
-                reader.Close();
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("[DataMgr] GetPlayerData 查询" + e.Message);
-                return playerData;
+                mySql.Close();
+                cmd.Dispose();
             }
             //反序列化
             MemoryStream stream = new MemoryStream(buffer);
@@ -319,27 +323,37 @@ namespace LockStepServer1._0.Core
                 return false;
             }
             byte[] bytes = stream.ToArray();
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             string formatStr = string.Format("update Player set data=@data Where ID='{0}';", ID);
-            MySqlCommand cmd = new MySqlCommand(formatStr, sqlconn);
+            MySqlCommand cmd = new MySqlCommand(formatStr, mySql);
             cmd.Parameters.Add("@data", MySqlDbType.Blob);
             cmd.Parameters[0].Value = bytes;
             try
             {
                 cmd.ExecuteNonQuery();
+                cmd.Dispose();
+                mySql.Close();
                 return true;
             }
             catch (Exception e)
             {
                 Console.WriteLine("[DataMgr]SavePlayer " + e.Message);
+                cmd.Dispose();
+                mySql.Close();
                 return false;
             }
 
         }
         public UserData GetUserData(string Openid)
         {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             UserData UD = null;
             string cmdStr = string.Format("select * from Player where ID='{0}';", Openid);
-            MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
             byte[] buffer = new byte[1];
             try
             {
@@ -347,6 +361,8 @@ namespace LockStepServer1._0.Core
                 if (!reader.HasRows)
                 {
                     reader.Close();
+                    mySql.Close();
+                    cmd.Dispose();
                     return UD;
                 }
                 reader.Read();
@@ -354,10 +370,14 @@ namespace LockStepServer1._0.Core
                 buffer = new byte[len];
                 reader.GetBytes(3, 0, buffer, 0, (int)len);
                 reader.Close();
+                mySql.Close();
+                cmd.Dispose();
             }
             catch (Exception e)
             {
                 Console.WriteLine("[DataMgr] GetUserData" + e.Message);
+                mySql.Close();
+                cmd.Dispose();
                 return UD;
             }
             //反序列化
@@ -366,23 +386,31 @@ namespace LockStepServer1._0.Core
             {
                 BinaryFormatter formatter = new BinaryFormatter();
                 UD = (UserData)formatter.Deserialize(stream);
+                stream.Dispose();
                 return UD;
             }
             catch (Exception e)
             {
                 Console.WriteLine("[DataMgr] GetUserData反序列化" + e.Message);
+                stream.Dispose();
                 return UD;
             }
-       }
+        }
         public Dictionary<string, UserData> FindUser(string NickName)
         {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
             Dictionary<string, UserData> UserList = new Dictionary<string, UserData>();
             string find = string.Format("select * from User where NickName='{0}';", NickName);
-            MySqlCommand cmd = new MySqlCommand(find, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            MySqlCommand cmd = new MySqlCommand(find, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
             MySqlDataReader reader = cmd.ExecuteReader();
             if (!reader.HasRows)
             {
                 reader.Close();
+                cmd.Dispose();
+                mySql.Close();
                 return UserList;
             }
             else
@@ -395,11 +423,17 @@ namespace LockStepServer1._0.Core
                 reader.Close();
                 for (int i = 0; i < List.Count; i++)
                 {
+                    MySqlConnection UmySql = new MySqlConnection(Sqlconnstr);
+                    UmySql.Open();
                     string cmdStr = string.Format("select * from Player where ID='{0}';", List[i]);
-                    MySqlCommand Ucmd = new MySqlCommand(cmdStr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                    MySqlCommand Ucmd = new MySqlCommand(cmdStr, UmySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                     MySqlDataReader Ureader = Ucmd.ExecuteReader();
                     if (!Ureader.HasRows)
                     {
+                        Ucmd.Dispose();
+                        UmySql.Close();
                         continue;
                     }
                     else
@@ -415,57 +449,118 @@ namespace LockStepServer1._0.Core
                         UserList.Add(List[i], Usd);
                     }
                     Ureader.Close();
+                    Ucmd.Dispose();
+                    UmySql.Close();
                 }
+                cmd.Dispose();
+                mySql.Close();
                 return UserList;
+            }
+        }
+        public void GetFriend(Player player)
+        {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
+            string Openid = player.Openid;
+            Friend friend = null;
+            string cmdStr = string.Format("select * from Player where ID='{0}';", Openid);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+            byte[] buffer = new byte[1];
+            try
+            {
+                MySqlDataReader reader = cmd.ExecuteReader();
+                if (!reader.HasRows)
+                {
+                    reader.Close();
+                    FriendMC.A.RetFriendList(friend, player);
+                    cmd.Dispose();
+                    mySql.Close();
+                    return;
+                }
+                reader.Read();
+                long len = reader.GetBytes(2, 0, null, 0, 0);
+                buffer = new byte[len];
+                reader.GetBytes(2, 0, buffer, 0, (int)len);
+                reader.Close();
+                cmd.Dispose();
+                mySql.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("[DataMgr] GetFriend" + e.Message);
+                FriendMC.A.RetFriendList(friend, player);
+                return;
+            }
+            //反序列化
+            MemoryStream stream = new MemoryStream(buffer);
+            try
+            {
+                BinaryFormatter formatter = new BinaryFormatter();
+                friend = (Friend)formatter.Deserialize(stream);
+                FriendMC.A.RetFriendList(friend, player);
+                return;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("[DataMgr] GetFriend 反序列化" + e.Message);
+                FriendMC.A.RetFriendList(friend, player);
+                return;
             }
         }
         public Friend GetFriend(string Openid)
         {
+            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+            mySql.Open();
+            Friend friend = null;
+            string cmdStr = string.Format("select * from Player where ID='{0}';", Openid);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+            MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
+            byte[] buffer = new byte[1];
             try
             {
-                Friend friend = null;
-                string cmdStr = string.Format("select * from Player where ID='{0}';", Openid);
-                MySqlCommand cmd = new MySqlCommand(cmdStr, sqlconn);
-                byte[] buffer = new byte[1];
-                try
+                MySqlDataReader reader = cmd.ExecuteReader();
+                if (!reader.HasRows)
                 {
-                    MySqlDataReader reader = cmd.ExecuteReader();
-                    if (!reader.HasRows)
-                    {
-                        reader.Close();
-                        return friend;
-                    }
-                    reader.Read();
-                    long len = reader.GetBytes(2, 0, null, 0, 0);
-                    buffer = new byte[len];
-                    reader.GetBytes(2, 0, buffer, 0, (int)len);
                     reader.Close();
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("[DataMgr] GetFriend" + e.Message);
+                    mySql.Close();
+                    cmd.Dispose();
                     return friend;
                 }
-                //反序列化
-                MemoryStream stream = new MemoryStream(buffer);
-                try
-                {
-                    BinaryFormatter formatter = new BinaryFormatter();
-                    friend = (Friend)formatter.Deserialize(stream);
-                    return friend;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("[DataMgr] GetFriend 反序列化" + e.Message);
-                    return friend;
-                }
+                reader.Read();
+                long len = reader.GetBytes(2, 0, null, 0, 0);
+                buffer = new byte[len];
+                reader.GetBytes(2, 0, buffer, 0, (int)len);
+                reader.Close();
+                mySql.Close();
+                cmd.Dispose();
             }
             catch (Exception e)
             {
-                Console.WriteLine("GetFriend 反序列化" + e.Message);
-                return null;
+                Console.WriteLine("[DataMgr] GetFriend" + e.Message);
+                mySql.Close();
+                cmd.Dispose();
+                return friend;
             }
-
+            //反序列化
+            MemoryStream stream = new MemoryStream(buffer);
+            try
+            {
+                BinaryFormatter formatter = new BinaryFormatter();
+                friend = (Friend)formatter.Deserialize(stream);
+                mySql.Close();
+                cmd.Dispose();
+                return friend;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("[DataMgr] GetFriend 反序列化" + e.Message);
+                mySql.Close();
+                cmd.Dispose();
+                return friend;
+            }
         }
         /// <summary>
         /// 添加好友
@@ -510,18 +605,30 @@ namespace LockStepServer1._0.Core
                     }
                 }
                 friend.ApplyList.Remove(TargetOpenid);
+                MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+                mySql.Open();
                 string Fstr = string.Format("update Player set Friend=@Friend Where ID='{0}';", Openid);
-                MySqlCommand command = new MySqlCommand(Fstr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                MySqlCommand command = new MySqlCommand(Fstr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                 command.Parameters.Add("@Friend", MySqlDbType.Blob);
                 byte[] Fbyte = Serialize(friend);
                 command.Parameters[0].Value = Fbyte;
                 command.ExecuteNonQuery();
+                command.Dispose();
+                mySql.Close();
+                MySqlConnection TarSql = new MySqlConnection(Sqlconnstr);
+                TarSql.Open();
                 string Tstr = string.Format("update Player set Friend=@Friend Where ID='{0}';", TargetOpenid);
-                MySqlCommand TarCom = new MySqlCommand(Tstr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                MySqlCommand TarCom = new MySqlCommand(Tstr, TarSql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                 TarCom.Parameters.Add("@Friend", MySqlDbType.Blob);
                 byte[] TarByte = Serialize(Tarfriend);
                 TarCom.Parameters[0].Value = TarByte;
                 TarCom.ExecuteNonQuery();
+                TarCom.Dispose();
+                TarSql.Close();
                 return true;
             }
             catch (Exception e)
@@ -549,7 +656,9 @@ namespace LockStepServer1._0.Core
                 if (F)
                     friend.GoodList.Remove(TargetOpenid);
                 string Fstr = string.Format("update Player set Friend=@Friend Where ID='{0}';", Openid);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
                 MySqlCommand command = new MySqlCommand(Fstr, sqlconn);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                 command.Parameters.Add("@Friend", MySqlDbType.Blob);
                 byte[] Fbyte = Serialize(friend);
                 command.Parameters[0].Value = Fbyte;
@@ -588,16 +697,23 @@ namespace LockStepServer1._0.Core
                 if (B)
                     return false;
                 friend.BlackList.Add(TargetOpenid, TarInfo);
+                MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+                mySql.Open();
                 string Fstr = string.Format("update Player set Friend=@Friend Where ID='{0}';", Openid);
-                MySqlCommand command = new MySqlCommand(Fstr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                MySqlCommand command = new MySqlCommand(Fstr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                 command.Parameters.Add("@Friend", MySqlDbType.Blob);
                 byte[] Fbyte = Serialize(friend);
                 command.Parameters[0].Value = Fbyte;
                 command.ExecuteNonQuery();
+                command.Dispose();
+                mySql.Close();
                 return true;
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 return false;
             }
 
@@ -618,16 +734,23 @@ namespace LockStepServer1._0.Core
                 if (!B)
                     return false;
                 friend.BlackList.Remove(TargetOpenid);
+                MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+                mySql.Open();
                 string Fstr = string.Format("update Player set Friend=@Friend Where ID='{0}';", Openid);
-                MySqlCommand command = new MySqlCommand(Fstr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                MySqlCommand command = new MySqlCommand(Fstr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                 command.Parameters.Add("@Friend", MySqlDbType.Blob);
                 byte[] Fbyte = Serialize(friend);
                 command.Parameters[0].Value = Fbyte;
                 command.ExecuteNonQuery();
+                command.Dispose();
+                mySql.Close();
                 return true;
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 return false;
             }
 
@@ -664,12 +787,18 @@ namespace LockStepServer1._0.Core
                         try
                         {
                             friend.BlackList.Remove(TargetOpenid);
+                            MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+                            mySql.Open();
                             string Fstr = string.Format("update Player set Friend=@Friend Where ID='{0}';", Openid);
-                            MySqlCommand command = new MySqlCommand(Fstr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                            MySqlCommand command = new MySqlCommand(Fstr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                             command.Parameters.Add("@Friend", MySqlDbType.Blob);
                             byte[] Fbyte = Serialize(friend);
                             command.Parameters[0].Value = Fbyte;
                             command.ExecuteNonQuery();
+                            command.Dispose();
+                            mySql.Close();
                         }
                         catch (Exception e)
                         {
@@ -681,12 +810,18 @@ namespace LockStepServer1._0.Core
                     {
 
                         Tarfriend.ApplyList.Add(Openid, OnselfInfo);
+                        MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+                        mySql.Open();
                         string Tstr = string.Format("update Player set Friend=@Friend Where ID='{0}'", TargetOpenid);
-                        MySqlCommand TarCom = new MySqlCommand(Tstr, sqlconn);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                        MySqlCommand TarCom = new MySqlCommand(Tstr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                         TarCom.Parameters.Add("@Friend", MySqlDbType.Blob);
                         byte[] TarByte = Serialize(Tarfriend);
                         TarCom.Parameters[0].Value = TarByte;
                         TarCom.ExecuteNonQuery();
+                        TarCom.Dispose();
+                        mySql.Close();
                         return true;
                     }
                     catch (Exception e)
@@ -733,12 +868,18 @@ namespace LockStepServer1._0.Core
                 if (!A)
                     return true;
                 MyFriend.ApplyList.Remove(TargetOpenid);
-                string MyStr= string.Format("update Player set Friend=@Friend Where ID='{0}';", Openid);
-                MySqlCommand MyCmd = new MySqlCommand(MyStr, sqlconn);
+                MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
+                mySql.Open();
+                string MyStr = string.Format("update Player set Friend=@Friend Where ID='{0}';", Openid);
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
+                MySqlCommand MyCmd = new MySqlCommand(MyStr, mySql);
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                 MyCmd.Parameters.Add("@Friend", MySqlDbType.Blob);
-                byte[] MyByte= Serialize(MyFriend);
+                byte[] MyByte = Serialize(MyFriend);
                 MyCmd.Parameters[0].Value = MyByte;
                 MyCmd.ExecuteNonQuery();
+                MyCmd.Dispose();
+                mySql.Close();
                 return true;
             }
             catch (Exception e)

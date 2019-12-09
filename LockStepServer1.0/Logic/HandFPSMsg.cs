@@ -19,7 +19,6 @@ namespace LockStepServer1._0.Logic
             string ProtoName = proto.GetString(start, ref start);
             int RoomId = proto.GetInt(start, ref start);
             int C_FPS_id = proto.GetInt(start, ref start);
-            RoomMgr.instance.list[RoomId].FPS.receFPS.RecFps(protocoBase);
             //ReceFPS.instance.RecFps(player,protocoBase);
         }
         public void MsgLockStep(ProtocolBase protocoBase)

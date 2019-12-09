@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using LockStepServer1._0.Logic;
 using LockStepServer1._0.Core;
+using System.Threading;
 
 namespace LockStepServer1._0.NetWorking
 {
@@ -21,9 +22,9 @@ namespace LockStepServer1._0.NetWorking
         private TCP m_TCP;
         public Socket listenfd;
         public TCP[] tcps;
-        public int maxConn = 1000;
+        public int maxConn = 30000;
         public static NMC instance;
-        Timer timer = new Timer(1000);
+        System.Timers.Timer timer = new System.Timers.Timer(1000);
         public long hearBeatTime = 300;
         public ProtocolBase Proto;
         //消息分发
@@ -61,13 +62,14 @@ namespace LockStepServer1._0.NetWorking
             timer.Elapsed += new ElapsedEventHandler(HandleMainTimer);
             //初始化连接池
             tcps = new TCP[maxConn];
-            for (int i = 0; i < tcps.Length; i++)
-            {
-                tcps[i] = new TCP();
-            }
+            //for (int i = 0; i < tcps.Length; i++)
+            //{
+            //    tcps[i] = new TCP();
+            //}
             listenfd = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPAddress iPAdd = IPAddress.Parse(host);
             IPEndPoint iPEnd = new IPEndPoint(iPAdd, port);
+            Console.WriteLine("NMC  " + iPEnd.ToString());
             try
             {
                 listenfd.Bind(iPEnd);
@@ -100,7 +102,7 @@ namespace LockStepServer1._0.NetWorking
                 {
                     Console.WriteLine("[心跳引起断开连接]" + conn.GetAddress());
                     lock (conn)
-                        conn.Close();
+                        CloseTCP(conn);
                     Console.WriteLine("断开");
                 }
             }
@@ -112,6 +114,7 @@ namespace LockStepServer1._0.NetWorking
             {
                 Socket sock = listenfd.EndAccept(ar);
                 int index = NewIndex();
+                tcps[index] = new TCP();
                 if (index < 0)
                 {
                     sock.Close();
@@ -144,30 +147,27 @@ namespace LockStepServer1._0.NetWorking
                 if (count <= 0)
                 {
                     Console.WriteLine("收到[" + conn.GetAddress() + "]断开连接");
-                    conn.Close();
+                    NMC.instance.CloseTCP(conn);
                     return;
                 }
                 conn.buffercount += count;
-                try
-                {
-                    ProcessData(conn);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.Message);
-                }
+                ProcessData(conn);
                 //继续接收
-                conn.socket.BeginReceive(conn.readbuffer, conn.buffercount, conn.BuffRmain(), SocketFlags.None, ReceiveCb, conn);
+                if (conn.isUse && conn.socket != null)
+                {
+                    conn.socket.BeginReceive(conn.readbuffer, conn.buffercount, conn.BuffRmain(), SocketFlags.None, ReceiveCb, conn);
+                }
             }
             catch (Exception e)
             {
-                conn.Close();
+                NMC.instance.CloseTCP(conn);
                 Console.WriteLine("【异常】" + e.Message);
             }
         }
 
-        private void ProcessData(TCP conn)
+        private void ProcessData(object con)
         {
+            TCP conn = (TCP)con;
             if (conn.buffercount < sizeof(Int32))
                 return;
             //
@@ -192,14 +192,13 @@ namespace LockStepServer1._0.NetWorking
             if (conn.buffercount > 0)
             {
                 ProcessData(conn);
-                Console.WriteLine("二次解析");
             }
         }
-                
+
         private void HandleMsg(TCP conn, ProtocolBase protoBase)
         {
             ProtocolBytes bytes = (ProtocolBytes)protoBase;
-           // Console.WriteLine("收到" + bytes.ProtocolName().ToString());
+            // Console.WriteLine("收到" + bytes.ProtocolName().ToString());
             string name = bytes.ProtocolName().ToString();
             object[] OB = bytes.GetDecode();
             string s = "";
@@ -207,14 +206,13 @@ namespace LockStepServer1._0.NetWorking
             {
                 s += bytes.GetDecode()[i].ToString();
             }
-            Console.WriteLine(s);
+            if (s != "HearBeat")
+                Console.WriteLine(s);
             string methodname = "Msg" + name;
-            //Console.WriteLine(methodname);
             if (name == "Friend")
             {
                 string method = OB[1].ToString();
                 MethodInfo mm = HFE.GetType().GetMethod(method);
-                Console.WriteLine(method);
                 object[] obj = new object[] { conn, OB };
                 mm.Invoke(HFE, obj);
             }
@@ -228,7 +226,6 @@ namespace LockStepServer1._0.NetWorking
                 }
                 catch (Exception e)
                 { Console.WriteLine(e.Message + " 221"); }
-
             }
             else if (name == ProtocolConst.MSG)
             {
@@ -241,7 +238,6 @@ namespace LockStepServer1._0.NetWorking
                         Console.WriteLine(str + methodname);
                     }
                     object[] obj = new object[] { protoBase };
-                    //Console.WriteLine("[处理连接消息]" + conn.GetAddress() + name);
                     mm.Invoke(handleConnMsg, obj);
                 }
                 catch (Exception e)
@@ -339,30 +335,35 @@ namespace LockStepServer1._0.NetWorking
         }
         public void CloseTCP(TCP conn)
         {
-            List<TCP> list = new List<TCP>();
-            foreach (TCP tcp in tcps)
+            for (int i = 0; i < tcps.Length; i++)
             {
-                if (conn != tcp)
-                    list.Add(tcp);
+                if (tcps[i] == conn)
+                {
+                    tcps[i] = null;
+                }
             }
-            tcps = list.ToArray();
+            conn.Close();
         }
         public void Print()
         {
             Console.WriteLine("=======服务器登录信息======");
+
+            int online = 0;
             for (int i = 0; i < tcps.Length; i++)
             {
                 if (tcps[i] == null) continue;
+                online++;
                 if (!tcps[i].isUse) continue;
                 string str = "[" + tcps[i].GetAddress() + "]";
                 if (tcps[i].Player != null)
                 {
-                    str += " 玩家ID =>" + tcps[i].Player.Name;
-                    str += " isUse =>" + tcps[i].isUse;
+                    str += " 玩家ID =>" + tcps[i].Player.Openid;
+                    str += " NowState =>" + tcps[i].Player.NowState;
                 }
-
                 Console.WriteLine(str);
             }
+            online.ToString().ColorWord(ConsoleColor.Red);
+            Console.WriteLine("==========================");
         }
     }
 }

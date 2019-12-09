@@ -5,6 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft;
 
+public enum State
+{
+    Friend,
+    Wrold,
+    Team
+}
 namespace LockStepServer1._0.Core
 {
     [Serializable]
@@ -51,5 +57,20 @@ namespace LockStepServer1._0.Core
     public class TeamMemberList
     {
         public UserData[] MembetList;
+    }
+    [Serializable]
+    public class ServerInfo
+    {
+        public string ServerVrsion;
+        public string IP;
+        public int Port;
+    }
+    [Serializable]
+    public class NewMSG
+    {
+        public string Source;
+        public string Destination;
+        public string MSGText;
+        public State MSGState;
     }
 }

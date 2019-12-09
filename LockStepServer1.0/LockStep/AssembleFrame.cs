@@ -9,11 +9,6 @@ namespace LockStepServer1._0.LockStep
 {
     class AssembleFrame
     {
-        public static AssembleFrame instance;
-        public AssembleFrame()
-        {
-            instance = this;
-        }
         public float Last_FPS_Time;
         public int FPS_id = 0;
         public int count = 0;
@@ -22,34 +17,11 @@ namespace LockStepServer1._0.LockStep
         public ProtocolBytes TempFPS;
         public void FPSInit()
         {
-            count = 0;
-            DataFPS = new ProtocolBytes();
-            TempFPS = new ProtocolBytes();
-            DataFPS.Addstring("Lockstep");
-            DataFPS.AddInt(FPS_id);
-            DataFPS.AddInt(1);
-            FPS_id++;
+            LogicFrame logicFrame = new LogicFrame();
         }
         public bool RecFps(ProtocolBase protoc)
         {
-            Proing = true;
-            count++;
-            ProtocolBytes pro = (ProtocolBytes)protoc;
-            int start = 0;
-            string proName = pro.GetString(start, ref start);
-            int RoomId = pro.GetInt(start, ref start);
-            int C_FPS_id = pro.GetInt(start, ref start);
-            string playerid = pro.GetString(start, ref start);
-            string opName = pro.GetString(start, ref start);
-            float op = pro.GetFloat(start, ref start);
-            Console.WriteLine(proName + " " + RoomId + " " + C_FPS_id + " " + playerid + " " + opName + " " + op);
-            TempFPS.Addstring(playerid);
-            TempFPS.Addstring(opName);
-            TempFPS.AddFloat(op);
-            Console.WriteLine(playerid + " " + opName + " " + op);
-            //Proing = false;
-            //return TempFPS;
-            return Proing = false;
+            return true;
         }
         public void Merge()//合并fps
         {

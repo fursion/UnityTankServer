@@ -11,6 +11,7 @@ using LockStepServer1._0.LockStep;
 using System.Threading;
 using System.Reflection;
 using LockStepServer1._0.Logic;
+using LockStepServer1._0.ROOM;
 
 namespace LockStepServer1._0.NetWorking
 {
@@ -112,37 +113,13 @@ namespace LockStepServer1._0.NetWorking
             string MsgName = dat[0].ToString();
             Console.WriteLine(MsgName);
             string methodname = "Msg" + MsgName;
-            int roomid = 0;
-            int fps_id = 0;
             if (MsgName == "UDPInit")
             {
-                //ProtocoBytes proto = new ProtocoBytes();
-                //proto.Addstring("FPS");
-                //SocketSend(proto, clientEnd);
-                //Console.WriteLine("发送fps");
-                LockStepMGR.instance.P_UDP_IP.Add(clientEnd);
-                //RoomMgr.instance.list[roomid].P_UDP_IP.Add(clientEnd);
+                string openid = dat[1].ToString();
+                FriendMC.A.OnlinePlayerList[openid].UDPClient = socket.RemoteEndPoint;
             }
-            else if (MsgName == "AAA")
-            {
-                ProtocolBytes bytes = new ProtocolBytes();
-                bytes.AddData("Addp");
-                bytes.AddData(dat[1].ToString());
-                for (int i = 0; i < LockStepMGR.instance.P_UDP_IP.Count; i++)
-                {
-                    SocketSend(bytes, LockStepMGR.instance.P_UDP_IP[i]);
-                }
-            }
-            //else if (MsgName == "Start")
-            //{
-            //    FPSMgr.instance.Start();
-            //}
             else if (MsgName == "FPS")
             {
-                if (fps_id < ASSF.FPS_id - 1)
-                {
-                    RoomMgr.instance.list[roomid].Rep_Send_List.Add(clientEnd, fps_id);
-                }
                 MethodInfo mm = handFPSMsg.GetType().GetMethod(methodname);
                 object[] obj = new object[] { Data };
                 mm.Invoke(handFPSMsg, obj);

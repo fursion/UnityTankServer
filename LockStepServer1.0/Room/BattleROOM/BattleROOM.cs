@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LockStepServer1._0.Room.BattleROOM
+namespace LockStepServer1._0.ROOM.BattleROOM
 {
     class BattleROOM
     {

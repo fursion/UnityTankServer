@@ -53,28 +53,29 @@ namespace LockStepServer1._0.NetWorking
         }
 
         public void Close()
-        {
-            if (socket == null)
-                return;
-            if (!socket.Connected)
-                return;
-            if (!isUse)
-            {
-                return;
-            }
+        { 
             if (Player != null)
             {
+                if (Player.NowState == PlayerState.Playing)
+                    return;
                 //处理玩家
                 Player.Close();
                 Player = null;
                 Console.WriteLine("处理玩家[保存玩家数据]");
                 //return;
             }
-            Console.WriteLine("断开连接" + GetAddress());
+            if (socket == null)
+                return;
+            if (!isUse)
+            {
+                return;
+            }
+            if (!socket.Connected)
+                return;
+            Console.WriteLine("断开连接");
             socket.Shutdown(SocketShutdown.Both);
             socket.Close();
-            isUse = false;
-           
+            isUse = false;         
         }
     }
 }
