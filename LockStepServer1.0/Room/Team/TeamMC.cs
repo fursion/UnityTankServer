@@ -1,11 +1,13 @@
-﻿ using LockStepServer1._0.Core;
-using LockStepServer1._0.Protocol;
+﻿using LockStepServer1._0.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using Fursion.Protocol;
 using System.Text;
 using System.Threading.Tasks;
+using Fursion.Tools;
+using Fursion.ClassLibrary;
 
 namespace LockStepServer1._0.ROOM.Team
 {
@@ -19,78 +21,103 @@ namespace LockStepServer1._0.ROOM.Team
             Mark = true;
             Console.WriteLine("TeamMC 启动成功");
         }
-        private Dictionary<string, TeamBase> TeamList = new Dictionary<string, TeamBase>();
-        public void TeamInvitation(Player player,object[] vs)
+        public int TeamsMax = 1000;
+        public Dictionary<string, TeamBase> TeamDict = new Dictionary<string, TeamBase>();
+        public Dictionary<string, TeamBase> OnePlayerTeamDict = new Dictionary<string, TeamBase>();
+        public Dictionary<string, TeamBase> TwoPlayerTeamDict = new Dictionary<string, TeamBase>();
+        public Dictionary<string, TeamBase> ThreePlayerTeamDict = new Dictionary<string, TeamBase>();
+        public Dictionary<string, TeamBase> FivePlayerTeamDict = new Dictionary<string, TeamBase>();
+        public void CreateTeam()
         {
-            string TeamID = vs[1].ToString();
-            string Openid = vs[2].ToString();
-            if (!TeamList.ContainsKey(TeamID))
+
+        }
+        /// <summary>
+        /// 组队邀请
+        /// </summary>
+        /// <param name="player"></param>
+        /// <param name="vs"></param>
+        public void TeamInvitation(Player player, object[] vs)
+        {
+            InviationReceipt receipt = JsonConvert.DeserializeObject<InviationReceipt>(vs[1].ToString());
+            if (!TeamDict.ContainsKey(receipt.TeamOpenid))
                 return;
             ProtocolBytes ret = new ProtocolBytes();
-            ret.AddData(TeamVar.RetInit);
-            foreach (Player Ply in TeamList[TeamID].Players)
+            ret.SetProtocol(Fursion_Protocol.Team_RetInit);
+            foreach (Player Ply in TeamDict[receipt.TeamOpenid].Players)
             {
                 if (Ply != null)
                 {
-                    if (Openid == Ply.Openid)
+                    if (receipt.ReceiverId == Ply.Openid)
                     {
                         ret.AddData(1);
                         player.Send(ret);
                         return;
                     }
-                }     
+                }
             }
-            if (FriendMC.A.OnlinePlayerList.ContainsKey(Openid))
+            if (FriendMC.OnlinePlayerList.ContainsKey(receipt.ReceiverId))
             {
                 ProtocolBytes Inret = new ProtocolBytes();
-                Inret.AddData(TeamVar.Team_Invitation);
-                Inret.AddData("3V3");
-                Inret.AddData(TeamID);
-                UserData UD = new UserData();
-                UD = DataMgr.instance.GetUserData(Openid);
-                string UDStr = JsonConvert.SerializeObject(UD);
-                Inret.AddData(UDStr);
-                FriendMC.A.OnlinePlayerList[Openid].Send(Inret);
-                ret.AddData(0);
-                player.Send(ret);
+                Inret.SetProtocol(Fursion_Protocol.Team_TeamInvitation);
+                receipt.InviterData = player.UserData;
+                Inret.AddData(receipt);
+                FriendMC.OnlinePlayerList[receipt.ReceiverId].Send(Inret);
+                Console.WriteLine("Send end");
             }
         }
+        /// <summary>
+        /// 创建队伍
+        /// </summary>
+        /// <param name="player"></param>
+        /// <param name="vs"></param>
         public void CreateTeam(Player player, object[] vs)
         {
-            ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(TeamVar.CreateTeam);
+            if (player.TeamOpenid != null)
+                return;
+            CreatTeamApply apply = JsonConvert.DeserializeObject<CreatTeamApply>(vs[1].ToString());
+            ProtocolBytes CreatRecp = new ProtocolBytes();
+            CreatRecp.SetProtocol(Fursion_Protocol.Team_CreateTeam);
             try
             {
-                TeamBase Team = new TeamBase();
-                Team.TeamInfo.TeamOpenid = player.Openid;
-                Team.TeamInfo.MasterOpenid = player.Openid;
-                Team.TeamInfo.playerMax = (int)vs[TeamVar.Team_Max_player];
-                Team.Players = new Player[Team.TeamInfo.playerMax];
-                Team.AddPlayer(player);
-                //Team.players = new List<Player>();
-                //Team.players.Add(player);
-                TeamList.Add(Team.TeamInfo.TeamOpenid, Team);
-                bytes.AddData(0);//返回创建结果
-                bytes.AddData(Team.TeamInfo.TeamOpenid);//返回队伍ID
-                bytes.AddData(Team.TeamInfo.MasterOpenid);//返回房主ID
-                bytes = Team.TeamPlayerInfo(bytes);//返回队伍成员信息
-                object[] v = bytes.GetDecode();
-                string s = "";
-                for (int i = 0; i < v.Length; i++)
+                TeamBase Team = new TeamBase
                 {
-                    s += "  " + v[i].ToString();
+                    TeamOpenid = FursionTools.GetFursionGUID(),//给队伍添加唯一识别符
+                    TeamType = apply.TeamType,
+                    TeamMode = apply.TeamMode,
+                    MasterOpenid = player.Openid
+                };
+                switch (Team.TeamType)
+                {
+                    case TeamType.One: Team.PresetPlayerMax = 1; break;
+                    case TeamType.Three: Team.PresetPlayerMax = 3; break;
+                    case TeamType.Five: Team.PresetPlayerMax = 5; break;
                 }
-                Console.WriteLine(s);
-                player.TeamOpenid = Team.TeamInfo.TeamOpenid;
-                player.Send(bytes);
+                switch (Team.TeamMode)
+                {
+                    case TeamMode.Custom: Team.PresetPlayerMax *= 2; break;
+                }
+                Team.Players = new Player[Team.PresetPlayerMax];
+                Team.JoinTeam(player);//将创建者加入队伍
+                player.TeamOpenid = Team.TeamOpenid;
+                player.GameReady = true;
+                TeamDict.Add(Team.TeamOpenid, Team);//将队伍加入全服队伍列表
+                //switch (Team.TeamInfo.PresetPlayerMax)
+                //{
+                //    case 1: OnePlayerTeamDict.Add(Team.TeamInfo.TeamOpenid, Team); break;
+                //    case 2: TwoPlayerTeamDict.Add(Team.TeamInfo.TeamOpenid, Team); break;
+                //    case 3: ThreePlayerTeamDict.Add(Team.TeamInfo.TeamOpenid, Team); break;
+                //    case 5: FivePlayerTeamDict.Add(Team.TeamInfo.TeamOpenid, Team); break;
+                //    default: break;
+                //}
+                CreatRecp.AddData(Team.GetTeamInfo(0));
+                player.Send(CreatRecp);
             }
             catch (Exception e)
             {
-                bytes.AddData(1);
-                player.Send(bytes);
+                CreatRecp.AddData(1);
+                player.Send(CreatRecp);
                 Console.WriteLine("CreateTeam  " + e.Message);
             }
-
         }
         /// <summary>
         /// 加入队伍
@@ -99,46 +126,34 @@ namespace LockStepServer1._0.ROOM.Team
         /// <param name="player"></param>
         public void IntoTeam(string TeamOpenid, Player player)
         {
-            ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(TeamVar.OneIntoTeam);
-            if (!TeamList.ContainsKey(TeamOpenid))
+            ProtocolBytes RecpToJoin = new ProtocolBytes();
+            RecpToJoin.SetProtocol(Fursion_Protocol.Team_IntoTeam);
+            if (!TeamDict.ContainsKey(TeamOpenid))
             {
-                bytes.AddData(-1);//房间已经销毁
-                player.conn.Send(bytes);
+                RecpToJoin.AddData(TeamDict[TeamOpenid].GetTeamInfo(-1));
+                player.Conn.Send(RecpToJoin);
                 return;
             }
-            if (TeamList[TeamOpenid].EffectivePlayerNumber() >= TeamList[TeamOpenid].TeamInfo.playerMax)
+            else if (TeamDict[TeamOpenid].EffectivePlayerNumber() == TeamDict[TeamOpenid].PresetPlayerMax)
             {
-                bytes.AddData(1);//房间人数已满
-                player.conn.Send(bytes);
+                RecpToJoin.AddData(TeamDict[TeamOpenid].GetTeamInfo(1));
+                player.Conn.Send(RecpToJoin);
                 return;
             }
-            foreach(Player Ply in TeamList[TeamOpenid].Players)
+            else if (TeamDict[TeamOpenid].CheckPlayerInTeam(player.Openid))
             {
-                if (Ply != null)
-                {
-                    if (player.Openid == Ply.Openid)
-                    {
-                        bytes.AddData(11);
-                        player.Send(bytes);
-                        return;
-                    }
-                }
-                     
+                RecpToJoin.AddData(TeamDict[TeamOpenid].GetTeamInfo(11));
+                player.Send(RecpToJoin);
+                return;
             }
-            TeamList[TeamOpenid].AddPlayer(player);
-            player.TeamOpenid = TeamList[TeamOpenid].TeamInfo.TeamOpenid;
-            bytes.AddData(0);//加入成功
-            bytes.AddData(TeamList[TeamOpenid].TeamInfo.TeamOpenid);//返回队伍ID
-            bytes.AddData(TeamList[TeamOpenid].TeamInfo.MasterOpenid);//返回房主ID
-            bytes = TeamList[TeamOpenid].TeamPlayerInfo(bytes);//返回队伍成员信息
-            player.conn.Send(bytes);//发送给加入者
+            TeamDict[TeamOpenid].JoinTeam(player);
+            player.TeamOpenid = TeamDict[TeamOpenid].TeamOpenid;
+            RecpToJoin.AddData(TeamDict[TeamOpenid].GetTeamInfo(0));
+            player.Send(RecpToJoin);//发送给加入者
             ProtocolBytes Broid = new ProtocolBytes();
-            Broid.AddData(TeamVar.IntoTeam);
-            Broid.AddData(0);
-            UserData intoer = player.UserData;
-            Broid.AddData(JsonConvert.SerializeObject(intoer));
-            TeamList[TeamOpenid].BordCast(Broid);//广播给队伍成员
+            Broid.SetProtocol(Fursion_Protocol.Team_IntoTeam);
+            Broid.AddData(TeamDict[TeamOpenid].GetTeamInfo(0));
+            TeamDict[TeamOpenid].BordCast(Broid);//广播给队伍成员
         }
         /// <summary>
         /// 退出队伍
@@ -146,186 +161,81 @@ namespace LockStepServer1._0.ROOM.Team
         /// <param name="TeamOpenid"></param>
         /// <param name="player"></param>
         /// <param name="TargetOpenid"></param>
-        public void ExitTeam(string TeamOpenid, Player player, string TargetOpenid)
+        public void ExitTeam(Player player)
         {
-            ProtocolBytes Broid = new ProtocolBytes();
-            Broid.AddData(TeamVar.ExitTeam);
-            try
+
+            if (player.TeamOpenid != null)
             {
-                if (!TeamList.ContainsKey(TeamOpenid))
+                if (!TeamDict.ContainsKey(player.TeamOpenid))
                 {
-                    return;
-                }
-                if (!TeamList[TeamOpenid].CheckPlayer(TargetOpenid))
-                {
-                    return;
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message + "92");
-            }
-            if (player.Openid == TargetOpenid && TeamList[TeamOpenid].TeamInfo.MasterOpenid != TargetOpenid)//成员自己退出
-            {
-                try
-                {
-                    for (int i = 0; i < TeamList[TeamOpenid].Players.Length; i++)
+                    ProtocolBytes ExitRet = new ProtocolBytes();
+                    ExitRet.SetProtocol(Fursion_Protocol.Team_SelfExit);
+                    TeamReceipt Receipt = new TeamReceipt
                     {
-                        if (TeamList[TeamOpenid].Players[i].Openid == TargetOpenid)
+                        ret = 0
+                    };
+                    ExitRet.AddData(Receipt);
+                    player.Send(ExitRet);//玩家不在队伍中，告知玩家不在队伍中
+                    return;
+                }
+                string TeamOpenid = player.TeamOpenid;
+                for (int i = 0; i < TeamDict[TeamOpenid].Players.Length; i++)
+                {
+                    if (TeamDict[TeamOpenid].Players[i] == player)
+                    {
+                        ProtocolBytes ExitRet = new ProtocolBytes();
+                        ExitRet.SetProtocol(Fursion_Protocol.Team_SelfExit);
+                        TeamDict[TeamOpenid].Players[i] = null;
+                        if (player.Openid == TeamDict[TeamOpenid].MasterOpenid)
                         {
-                            try
-                            {
-                                TeamList[TeamOpenid].Players[i] = null;
-                            }
-                            catch (Exception e)
-                            {
-                                Console.WriteLine(e.Message + "  104");
-                            }
-                            ProtocolBytes ExitRet = new ProtocolBytes();
-                            ExitRet.AddData(TeamVar.ExitTeam);
-                            ExitRet.AddData(0);
-                            ExitRet.AddData(TargetOpenid);
                             player.TeamOpenid = null;
-                            player.Send(ExitRet);//发送给退出者
-                            Console.WriteLine("退出成功");
-                            Broid.AddData(0);
-                            Broid.AddData(TargetOpenid);
-                            TeamList[TeamOpenid].BordCast(Broid);//广播给队伍里剩余人
-                            return;
-                        }
-                    }
-
-                }
-                catch (Exception e) { Console.WriteLine(e.Message + "112"); }
-            }
-            else if (player.Openid == TeamList[TeamOpenid].TeamInfo.MasterOpenid && player.Openid != TargetOpenid)//被踢出
-            {
-                try
-                {
-                    Player P;
-                    for (int i = 0; i < TeamList[TeamOpenid].Players.Length; i++)
-                    {
-                        if (TeamList[TeamOpenid].Players[i].Openid == TargetOpenid)
-                        {
-                            P = TeamList[TeamOpenid].Players[i];
-                            TeamList[TeamOpenid].Players[i] = null;
-                            ProtocolBytes KickRet = new ProtocolBytes();
-                            KickRet.AddData(TeamVar.Kick_Out);
-                            KickRet.AddData(1);
-                            KickRet.AddData(TargetOpenid);
-                            P.TeamOpenid = null;
-                            P.Send(KickRet);//发给被踢者
-                            Broid.AddData(0);
-                            Broid.AddData(TargetOpenid);
-                            TeamList[TeamOpenid].BordCast(Broid);//广播给队伍里剩余人
-                            return;
-                            //return;
-                        }
-                    }
-                }
-                catch (Exception e) { Console.WriteLine(e.Message + "136"); }
-
-            }
-            else if (player.Openid != TeamList[TeamOpenid].TeamInfo.MasterOpenid && player.Openid != TargetOpenid)
-            {
-                try
-                {
-                    ProtocolBytes bytes = new ProtocolBytes();
-                    bytes.AddData(TeamVar.ExitTeam);
-                    bytes.AddData(0);
-                    player.Send(bytes);//发送给踢人者
-                }
-                catch (Exception e) { Console.WriteLine(e.Message + "148"); }
-            }
-            else if (player.Openid == TeamList[TeamOpenid].TeamInfo.MasterOpenid && player.Openid == TargetOpenid)//房主退出
-            {
-                try
-                {
-                    for (int i = 0; i < TeamList[TeamOpenid].Players.Length; i++)
-                    {
-                        if (TeamList[TeamOpenid].Players[i] == null)
-                            continue;
-                        if (TeamList[TeamOpenid].Players[i].Openid == TargetOpenid)
-                        {
-                            try
+                            ExitRet.AddData(TeamDict[TeamOpenid].GetTeamInfo(0));
+                            player.Send(ExitRet);
+                            if (TeamDict[TeamOpenid].EffectivePlayerNumber() == 0)//
                             {
-                                try
-                                {
-                                    TeamList[TeamOpenid].Players[i] = null;
-                                }
-                                catch (Exception e)
-                                {
-                                    Console.WriteLine(e.Message + "178");
-                                }
-                                int count = TeamList[TeamOpenid].EffectivePlayerNumber();
-                                Console.WriteLine("count= " + count);
-                                if (count > 0)
-                                {
-                                    try
-                                    {
-                                        string newTeamOpenid = TeamList[TeamOpenid].RetFastPlayerID();
-                                        string newMasterOpenid = newTeamOpenid;
-                                        TeamList[TeamOpenid].TeamInfo.MasterOpenid = newMasterOpenid;
-                                        TeamList[TeamOpenid].TeamInfo.TeamOpenid = newTeamOpenid;
-                                        TeamList.Add(newTeamOpenid, TeamList[TeamOpenid]);
-                                        TeamList.Remove(TeamOpenid);
-                                        ProtocolBytes ExitRet = new ProtocolBytes();
-                                        ExitRet.AddData(TeamVar.ExitTeam);
-                                        ExitRet.AddData(0);
-                                        ExitRet.AddData(TargetOpenid);
-                                        player.TeamOpenid = null;
-                                        player.Send(ExitRet);//发送给退出者
-                                        Broid.AddData(-2);
-                                        Broid.AddData(TargetOpenid);
-                                        Broid.AddData(newTeamOpenid);
-                                        Broid.AddData(newMasterOpenid);
-                                        TeamList[newTeamOpenid].BordCast(Broid);//广播给队伍里剩余人
-                                        return;
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        Console.WriteLine(e.Message + "200");
-                                    }
-
-                                }
-                                else
-                                {
-                                    Broid.AddData(0);
-                                    Broid.AddData(TargetOpenid);
-                                    player.TeamOpenid = null;
-                                    player.Send(Broid);//发送给退出者
-                                    try
-                                    {
-                                        DestoryTeam(TeamOpenid);
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        Console.WriteLine("DestoryTeam " + e.Message);
-                                    }
-                                    return;
-                                }
+                                DestoryTeam(TeamOpenid);
+                                return;
                             }
-                            catch (Exception e)
-                            {
-                                Console.WriteLine(e.Message + "179");
-                            }
-
+                            else
+                                TeamDict[TeamOpenid].MasterOpenid = TeamDict[TeamOpenid].RetFastPlayerID();
                         }
+                        else
+                        {
+                            player.TeamOpenid = null;
+                            ExitRet.AddData(TeamDict[TeamOpenid].GetTeamInfo(0));
+                            player.Send(ExitRet);
+                        }
+                        ProtocolBytes BordExitRet = new ProtocolBytes();
+                        BordExitRet.SetProtocol(Fursion_Protocol.Team_ExitTeam);
+                        BordExitRet.AddData(TeamDict[TeamOpenid].GetTeamInfo(0));
+                        if (TeamDict.ContainsKey(TeamOpenid))
+                            TeamDict[TeamOpenid].BordCast(BordExitRet);//广播给队伍里剩余人
+                        return;
                     }
                 }
-                catch (Exception e)
+            }
+            else
+            {
+                ProtocolBytes ExitRet = new ProtocolBytes();
+                ExitRet.SetProtocol(Fursion_Protocol.Team_SelfExit);
+                TeamReceipt Receipt = new TeamReceipt
                 {
-                    Console.WriteLine(e.Message + "192");
-                }
-
+                    ret = 0
+                };
+                ExitRet.AddData(Receipt);
+                player.Send(ExitRet);//玩家不在队伍中，告知玩家不在队伍中
             }
         }
+        /// <summary>
+        /// 销毁队伍
+        /// </summary>
+        /// <param name="TeamOpenid">队伍id</param>
         public void DestoryTeam(string TeamOpenid)
         {
             try
             {
-                TeamList[TeamOpenid] = null;
-                TeamList.Remove(TeamOpenid);
+                TeamDict[TeamOpenid] = null;
+                TeamDict.Remove(TeamOpenid);
             }
             catch (Exception e)
             {
@@ -336,23 +246,22 @@ namespace LockStepServer1._0.ROOM.Team
         public void PrintTeamList()
         {
             Console.WriteLine("================================TeamList==================================");
-            int count = TeamList.Count;
+            int count = TeamDict.Count;
             if (count == 0)
             {
-                Console.WriteLine("TeamList.Count  =  " + TeamList.Count);
+                Console.WriteLine("TeamList.Count  =  " + TeamDict.Count);
             }
             for (int i = 0; i < count; i++)
             {
-                string t = TeamList.ToList()[i].Key.ToString();
-                int cou = TeamList.ToList()[i].Value.TeamInfo.playerMax;
+                int cou = TeamDict.ToList()[i].Value.PresetPlayerMax;
                 string s = "";
-                Console.WriteLine("TeamID :" + t);
+                Console.WriteLine("TeamID :" + TeamDict.ToList()[i].Key + TeamDict.ToList()[i].Value.MasterOpenid);
                 for (int a = 0; a < cou; a++)
                 {
-                    if (TeamList.ToList()[i].Value.Players[a] == null)
+                    if (TeamDict.ToList()[i].Value.Players[a] == null)
                         s = "";
                     else
-                        s = TeamList.ToList()[i].Value.Players[a].Openid;
+                        s = TeamDict.ToList()[i].Value.Players[a].Openid;
                     Console.WriteLine("成员:" + s);
                 }
             }

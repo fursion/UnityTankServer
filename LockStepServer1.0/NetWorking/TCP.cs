@@ -1,11 +1,11 @@
-﻿using LockStepServer1._0.Protocol;
-using LockStepServer1._0.Core;
+﻿using LockStepServer1._0.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Fursion.Protocol;
 
 namespace LockStepServer1._0.NetWorking
 {
@@ -43,7 +43,7 @@ namespace LockStepServer1._0.NetWorking
         public string GetAddress()
         {
             if (!isUse)
-                return "无法获取地址";
+                return "Unable to get IPAdress";
             return socket.RemoteEndPoint.ToString();
         }
 
@@ -58,10 +58,10 @@ namespace LockStepServer1._0.NetWorking
             {
                 if (Player.NowState == PlayerState.Playing)
                     return;
-                //处理玩家
+                //Processing Player
                 Player.Close();
                 Player = null;
-                Console.WriteLine("处理玩家[保存玩家数据]");
+                Console.WriteLine("Player Processing Save Player Data");
                 //return;
             }
             if (socket == null)
@@ -72,7 +72,7 @@ namespace LockStepServer1._0.NetWorking
             }
             if (!socket.Connected)
                 return;
-            Console.WriteLine("断开连接");
+            Console.WriteLine("DisConnect");
             socket.Shutdown(SocketShutdown.Both);
             socket.Close();
             isUse = false;         

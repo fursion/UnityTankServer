@@ -10,19 +10,19 @@ namespace TankServerTest.Logic
 {   partial class HandlePlayerMsg
     {
         //获取房间列表
-        public void MsgGetRoomList(Player player,ProtocolBase protocoBase)
+        public void GetRoomList(Player player,ProtocolBase protocoBase)
         {
 
         }
         //获取房间信息
-        public void MsgGetRoomInfo(Player player,ProtocolBase protocoBase)
+        public void GetRoomInfo(Player player,ProtocolBase protocoBase)
         {
-            if (player.tempData.status != PlayerTempData.Status.Room)
+            if (player.TempData.status != PlayerTempData.Status.Room)
             {
                 Console.WriteLine("MsgGetRoomInfo status err "+player.Name);
                 return;
             }
-            Room room = player.tempData.room;
+            Room room = player.TempData.Room;
         }
     }
     class HandRoomMsg

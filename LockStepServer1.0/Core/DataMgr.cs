@@ -15,6 +15,7 @@ using LockStepServer1._0.NetWorking;
 using LockStepServer1._0.ROOM;
 using Newtonsoft.Json;
 using System.Threading;
+using Fursion.ClassLibrary;
 
 namespace LockStepServer1._0.Core
 {
@@ -120,7 +121,7 @@ namespace LockStepServer1._0.Core
                 CreatPlayer(NickName, Openid, UD);
                 mySql.Close();
                 cmd.Dispose();
-                Console.WriteLine(Openid+" : 注册成功");
+                Console.WriteLine(Openid + " : 注册成功");
                 return true;
             }
             catch (Exception e)
@@ -227,13 +228,17 @@ namespace LockStepServer1._0.Core
             }
         }
         // public bool Friend()
-        //检测用户名和密码
-        public void CheckOpenid(TCP Conn, object[] vs)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="Conn">TCP连接</param>
+        /// <param name="receipt">登录凭证</param>
+        /// <param name="ISReConn">是否是重连</param>
+        public void CheckOpenid(TCP Conn, LoginReceipt receipt, bool ISReConn)
         {
             MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
             mySql.Open();
-            string Openid = vs[1].ToString();           
-            string cmdStr = string.Format("select * from User where Openid='{0}';", Openid);
+            string cmdStr = string.Format("select * from User where Openid='{0}';", receipt.UserOpenid);
             MySqlCommand cmd = new MySqlCommand(cmdStr, mySql);
             try
             {
@@ -243,18 +248,18 @@ namespace LockStepServer1._0.Core
                 cmd.Dispose();
                 if (HasRows)
                 {
-                    HandleConnMsg.TrueCheckOpenid(Conn, vs);
+                    HandleConnMethodPool.TrueCheckOpenid(Conn, receipt, ISReConn);
                 }
                 else
                 {
-                    HandleConnMsg.FalseCheckOpenid(Conn);
+                    HandleConnMethodPool.FalseCheckOpenid(Conn);
                 }
             }
             catch (Exception e)
             {
                 cmd.Dispose();
-                Console.WriteLine("[DataMgr] CheckOpenid :" + e.Message+ Thread.CurrentThread.Name);
-                HandleConnMsg.FalseCheckOpenid(Conn);
+                Console.WriteLine("[DataMgr] CheckOpenid :" + e.Message + Thread.CurrentThread.Name);
+                HandleConnMethodPool.FalseCheckOpenid(Conn);
             }
             mySql.Close();
             cmd.Dispose();
@@ -269,7 +274,7 @@ namespace LockStepServer1._0.Core
             byte[] buffer = new byte[1];
             using (MySqlCommand cmd = new MySqlCommand(cmdStr, mySql))
             {
-                
+
                 try
                 {
                     MySqlDataReader reader = cmd.ExecuteReader();
@@ -309,8 +314,10 @@ namespace LockStepServer1._0.Core
         //保存角色数据
         public bool SavePlayer(Player player)
         {
+            if (player == null)
+                return false;
             string ID = player.Name;
-            PlayerData playerData = player.data;
+            PlayerData playerData = player.Data;
             IFormatter formatter = new BinaryFormatter();
             MemoryStream stream = new MemoryStream();
             try
@@ -323,6 +330,7 @@ namespace LockStepServer1._0.Core
                 return false;
             }
             byte[] bytes = stream.ToArray();
+            stream.Dispose();
             MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
             mySql.Open();
             string formatStr = string.Format("update Player set data=@data Where ID='{0}';", ID);
@@ -459,6 +467,8 @@ namespace LockStepServer1._0.Core
         }
         public void GetFriend(Player player)
         {
+            if (player == null)
+                return;
             MySqlConnection mySql = new MySqlConnection(Sqlconnstr);
             mySql.Open();
             string Openid = player.Openid;

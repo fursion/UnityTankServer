@@ -5,26 +5,32 @@ using System.Text;
 using System.Threading.Tasks;
 using LockStepServer1._0.Core;
 using LockStepServer1._0.NetWorking;
-using LockStepServer1._0.Protocol;
 using LockStepServer1._0.ROOM;
 using LockStepServer1._0.ROOM.Team;
 using Newtonsoft.Json;
+using Fursion.Protocol;
 
 namespace LockStepServer1._0.Logic
 {
-    class HandlePlayerEvent
+    class HandlePlayerEventMethodPool
     {
-        public void MsgTeamInvitation(TCP conn, ProtocolBase protocoBase)
+        public void TeamInvitation(TCP conn, ProtocolBase protocoBase)
         {
             ProtocolBytes bytes = (ProtocolBytes)protocoBase;
             object[] vs = bytes.GetDecode();
             TeamMC.A.TeamInvitation(conn.Player, vs);
         }
-        public void MsgTeamStart(TCP conn, ProtocolBase protocoBase)
+        public void TeamStart(TCP conn, ProtocolBase protocoBase)
         {
-
+            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
+            object[] vs = bytes.GetDecode();
+            string TeamID = vs[1].ToString();
+            if (conn.Player.TeamOpenid == TeamID)
+            {
+                TeamMC.A.TeamDict[TeamID].Start();
+            }
         }
-        public void MsgIntoTeam(TCP conn, ProtocolBase protocoBase)
+        public void IntoTeam(TCP conn, ProtocolBase protocoBase)
         {
             ProtocolBytes bytes = (ProtocolBytes)protocoBase;
             object[] vs = bytes.GetDecode();
@@ -33,7 +39,7 @@ namespace LockStepServer1._0.Logic
         }
         public void OnLogin(Player player)
         {
-            Scene.instance.AddPlayer(player.Name);
+
         }
         public void OnLogOut(Player player)
         {
@@ -52,9 +58,9 @@ namespace LockStepServer1._0.Logic
         {
             if (TargetFriendName == "")
                 return;
-            if (player.data.Contacts.ContainsKey(TargetFriendName))
+            if (player.Data.Contacts.ContainsKey(TargetFriendName))
                 return;
-            player.data.Contacts.Add(TargetFriendName, TargetFriendID);
+            player.Data.Contacts.Add(TargetFriendName, TargetFriendID);
             
         }
         public void DelFriends(Player player, string TargetFriendName)

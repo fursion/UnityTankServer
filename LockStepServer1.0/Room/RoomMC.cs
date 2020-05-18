@@ -1,5 +1,5 @@
 ﻿using LockStepServer1._0.Core;
-using LockStepServer1._0.Protocol;
+using Fursion.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,18 +24,18 @@ namespace LockStepServer1._0.ROOM
             if (!RoomList.ContainsKey(RoomOpenid))
             {
                 bytes.AddData(-1);//房间已经销毁
-                player.conn.Send(bytes);
+                player.Conn.Send(bytes);
                 return;
             }
             if (RoomList[RoomOpenid].players.Count >= RoomList[RoomOpenid].playerMax)
             {
                 bytes.AddData(1);//房间人数已满
-                player.conn.Send(bytes);
+                player.Conn.Send(bytes);
                 return;
             }
             RoomList[RoomOpenid].players.Add(player);
             bytes.AddData(0);//加入成功
-            player.conn.Send(bytes);
+            player.Conn.Send(bytes);
         }
     }
 }

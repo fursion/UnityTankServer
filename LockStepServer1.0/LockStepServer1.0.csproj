@@ -13,7 +13,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <IsWebBootstrapper>true</IsWebBootstrapper>
-    <PublishUrl>ftp://fursion.cn/LockStepServer/</PublishUrl>
+    <PublishUrl>ftp://Server.fursion.cn/LockStepServer/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
     <UpdateEnabled>true</UpdateEnabled>
@@ -23,10 +23,10 @@
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
-    <InstallUrl>https://fursion.cn:433/LockStepServer/</InstallUrl>
+    <InstallUrl>https://Server.fursion.cn/LockStepServer/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>38</ApplicationRevision>
+    <ApplicationRevision>70</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -72,12 +72,21 @@
   <PropertyGroup>
     <SignAssembly>false</SignAssembly>
   </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>fursionServer.pfx</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Fursion">
+      <HintPath>..\..\..\source\repos\Fursion\Fursion\bin\Debug\netstandard2.0\Fursion.dll</HintPath>
+    </Reference>
     <Reference Include="MySql.Data, Version=8.0.16.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>C:\Program Files (x86)\MySQL\MySQL Connector Net 8.0.16\Assemblies\v4.5.2\MySql.Data.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL" />
+    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\Tank3.0\Tank3.0\Assets\JsonDotNet\Assemblies\Standalone\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Web" />
@@ -87,6 +96,9 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="UnityEngine">
+      <HintPath>C:\Program Files\Unity\2019.2.5f1\Editor\Data\Managed\UnityEngine.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\Const.cs" />
@@ -94,21 +106,19 @@
     <Compile Include="Core\Player.cs" />
     <Compile Include="Core\PlayerData.cs" />
     <Compile Include="Core\PlayerTempData.cs" />
-    <Compile Include="Core\Room.cs" />
     <Compile Include="Core\Sys.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="JsontEST.cs" />
     <Compile Include="LockStep\AssembleFrame.cs" />
     <Compile Include="LockStep\LockStepMGR.cs" />
     <Compile Include="LockStep\LogicFrame.cs" />
+    <Compile Include="LockStep\SynTest.cs" />
     <Compile Include="Logic\HandFPSMsg.cs" />
     <Compile Include="Logic\HandleBattleMsg.cs" />
-    <Compile Include="Logic\HandleConnMsg.cs" />
+    <Compile Include="Logic\HandleMethodPool.cs" />
     <Compile Include="Logic\HandlePlayerEvent.cs" />
     <Compile Include="Logic\HandlePlayerMsg.cs" />
     <Compile Include="Logic\HandRoomMsg.cs" />
-    <Compile Include="Logic\Scene.cs" />
-    <Compile Include="Logic\ScenePlayer.cs" />
     <Compile Include="Logic\World.cs" />
     <Compile Include="NetWorking\NMC.cs" />
     <Compile Include="NetWorking\ServerConn.cs" />
@@ -124,13 +134,13 @@
     </Compile>
     <Compile Include="Protocol\ProtocolBase.cs" />
     <Compile Include="Protocol\ProtocolBytes.cs" />
-    <Compile Include="Protocol\ProtocolDecod.cs" />
     <Compile Include="ROOM\BattleROOM\BattleROOM.cs" />
     <Compile Include="ROOM\FriendMC.cs" />
     <Compile Include="ROOM\Match.cs" />
     <Compile Include="ROOM\Room.cs" />
     <Compile Include="ROOM\RoomBase.cs" />
     <Compile Include="ROOM\RoomMC.cs" />
+    <Compile Include="ROOM\RoomPlayer.cs" />
     <Compile Include="ROOM\Team\Team.cs" />
     <Compile Include="ROOM\Team\TeamMC.cs" />
   </ItemGroup>
@@ -138,6 +148,7 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="fursionServer.pfx" />
     <None Include="LockStepServer1.0_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

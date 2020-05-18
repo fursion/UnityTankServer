@@ -5,11 +5,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
-using LockStepServer1._0.Protocol;
 using System.Threading;
 using LockStepServer1._0.Core;
 using LockStepServer1._0.NetWorking;
 using Newtonsoft.Json;
+using Fursion.Protocol;
 
 namespace LockStepServer1._0.NetWorking
 {
@@ -181,7 +181,7 @@ namespace LockStepServer1._0.NetWorking
         public void GetServer()
         {
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData("GetServer");
+            bytes.SetProtocol(Fursion_Protocol.GetServer);
             foreach (ServerConn SC in OnlineServer)
             {
                 SC.Send(bytes);
@@ -189,11 +189,11 @@ namespace LockStepServer1._0.NetWorking
         }
         private static void Get_MSG_Server_Utili()
         {
-            while (true)
-            {
-                This.GetServer();
-                Thread.Sleep(5000);
-            }
+            //while (true)
+            //{
+            //    This.GetServer();
+            //    Thread.Sleep(5000);
+            //}
         }
         public string GetServerInfo(ProtocolBytes bytes, TCP conn)
         {

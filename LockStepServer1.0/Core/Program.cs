@@ -1,7 +1,6 @@
 ﻿using LockStepServer1._0.Core;
 using LockStepServer1._0.Logic;
 using LockStepServer1._0.NetWorking;
-using LockStepServer1._0.Protocol;
 using LockStepServer1._0.LockStep;
 using System;
 using System.Collections.Generic;
@@ -13,6 +12,8 @@ using LockStepServer1._0.ROOM.Team;
 using LockStepServer1._0.ROOM;
 using System.Net.Sockets;
 using System.Threading;
+using Fursion.Protocol;
+using Fursion.Tools;
 
 namespace LockStepServer1._0
 {
@@ -22,6 +23,7 @@ namespace LockStepServer1._0
         public static Thread MSG_Server_Utili;
         static void Main(string[] args)
         {
+
             //printfi();
             Console.Title = "Tank_Main_Server";
             string hostName = Dns.GetHostName();   //获取本机名
@@ -39,9 +41,8 @@ namespace LockStepServer1._0
             RoomMC roomMC = new RoomMC();//队伍管理
             FriendMC FMC = new FriendMC();//好友管理
             ServerMC SMC = new ServerMC();//服务器管理
+            //SynTest Syt = new SynTest();/////////
             SMC.Start(ipAddress, 2012);
-            LockStepMGR fPS = new LockStepMGR();//测试
-            fPS.Start();
             Core.Room room = new Core.Room();
             //Scene scene = new Scene();
             //RoomMgr roomMgr = new RoomMgr();
@@ -67,12 +68,13 @@ namespace LockStepServer1._0
                     case "getserver":
                         SMC.printinfo();
                         break;
+                    case "OnlineList": FriendMC.PrintOnlinelist(); break;
                 }
             }
         }
         public static void COC()
         {
-            for(int i = 0; i < 500; i++)
+            for (int i = 0; i < 500; i++)
             {
                 TCP newTcp = new TCP();
                 newTcp.socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

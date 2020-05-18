@@ -1,6 +1,5 @@
 ﻿
 #define _DEBUG
-using LockStepServer1._0.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +12,7 @@ using System.Timers;
 using LockStepServer1._0.Logic;
 using LockStepServer1._0.Core;
 using System.Threading;
+using Fursion.Protocol;
 
 namespace LockStepServer1._0.NetWorking
 {
@@ -28,11 +28,12 @@ namespace LockStepServer1._0.NetWorking
         public long hearBeatTime = 300;
         public ProtocolBase Proto;
         //消息分发
-        public HandleConnMsg handleConnMsg = new HandleConnMsg();
-        public HandlePlayerEvent handlePlayerEvent = new HandlePlayerEvent();
+        public HandleConnMethodPool handleConnMP = new HandleConnMethodPool();
+        public HandlePlayerEventMethodPool handlePlayerEvent = new HandlePlayerEventMethodPool();
+        public HandTeamEventMethodPool HandTeameEventMP = new HandTeamEventMethodPool();
         public HandlePlayerMsg handlePlayerMsg = new HandlePlayerMsg();
         public HandFPSMsg handFPSMsg = new HandFPSMsg();
-        public HandFriendEvent HFE = new HandFriendEvent();
+        public HandFriendEventMethodPool HandFriendEventMP = new HandFriendEventMethodPool();
         public NMC()
         {
             instance = this;
@@ -80,7 +81,7 @@ namespace LockStepServer1._0.NetWorking
             }
             listenfd.Listen(maxConn);
             listenfd.BeginAccept(AcceptCb, null);
-            Console.WriteLine("【服务器】启动成功");
+            Console.WriteLine(" [Master Server] : Master Server Started Successfully");
         }
 
         public void HandleMainTimer(object sender, ElapsedEventArgs e)
@@ -100,10 +101,10 @@ namespace LockStepServer1._0.NetWorking
                 if (!conn.isUse) continue;
                 if (conn.lastTickTime < timeNow - hearBeatTime)
                 {
-                    Console.WriteLine("[心跳引起断开连接]" + conn.GetAddress());
+                    Console.WriteLine("[Heartbeat Cause DisConnection :]" + conn.GetAddress());
                     lock (conn)
                         CloseTCP(conn);
-                    Console.WriteLine("断开");
+                    Console.WriteLine("DisConnetcion");
                 }
             }
         }
@@ -112,27 +113,28 @@ namespace LockStepServer1._0.NetWorking
         {
             try
             {
+                
                 Socket sock = listenfd.EndAccept(ar);
                 int index = NewIndex();
                 tcps[index] = new TCP();
                 if (index < 0)
                 {
                     sock.Close();
-                    Console.WriteLine("【警告】连接已满");
+                    Console.WriteLine("【Warning】The Maximum number of connections has been reached");
                 }
                 else
                 {
                     TCP conn = tcps[index];
                     conn.Init(sock);
                     string adr = conn.GetAddress();
-                    Console.WriteLine("客户端连接[" + adr + "]连接池connsID: " + index);
+                    Console.WriteLine("Client connection [" + adr + "] ConnectionPool ConnectionID= " + index);
                     conn.socket.BeginReceive(conn.readbuffer, conn.buffercount, conn.BuffRmain(), SocketFlags.None, ReceiveCb, conn);
                     listenfd.BeginAccept(AcceptCb, null);
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine("AcceptCb失败" + e.Message);
+                Console.WriteLine("AcceptCb Defeated" + e.Message);
             }
         }
         public void ReceiveCb(IAsyncResult ar)
@@ -143,16 +145,14 @@ namespace LockStepServer1._0.NetWorking
             try
             {
                 int count = conn.socket.EndReceive(ar);
-                //关闭信号
                 if (count <= 0)
                 {
-                    Console.WriteLine("收到[" + conn.GetAddress() + "]断开连接");
+                    Console.WriteLine("Received [" + conn.GetAddress() + "] Disconnection");
                     NMC.instance.CloseTCP(conn);
                     return;
                 }
                 conn.buffercount += count;
                 ProcessData(conn);
-                //继续接收
                 if (conn.isUse && conn.socket != null)
                 {
                     conn.socket.BeginReceive(conn.readbuffer, conn.buffercount, conn.BuffRmain(), SocketFlags.None, ReceiveCb, conn);
@@ -161,7 +161,7 @@ namespace LockStepServer1._0.NetWorking
             catch (Exception e)
             {
                 NMC.instance.CloseTCP(conn);
-                Console.WriteLine("【异常】" + e.Message);
+                Console.WriteLine("【Abnormal】  ReceiveCb " + e.Message);
             }
         }
 
@@ -199,24 +199,25 @@ namespace LockStepServer1._0.NetWorking
         {
             ProtocolBytes bytes = (ProtocolBytes)protoBase;
             // Console.WriteLine("收到" + bytes.ProtocolName().ToString());
-            string name = bytes.ProtocolName().ToString();
+            string name = bytes.Protocol.ToString();
+            int index = name.LastIndexOf("_");
+            name = name.Substring(index + 1);
             object[] OB = bytes.GetDecode();
             string s = "";
             for (int i = 0; i < bytes.GetDecode().Length; i++)
             {
                 s += bytes.GetDecode()[i].ToString();
             }
-            if (s != "HearBeat")
-                Console.WriteLine(s);
-            string methodname = "Msg" + name;
-            if (name == "Friend")
+            //if (s != "HearBeat")
+            Console.WriteLine(name + " " + s);
+            string methodname = name;
+            if (ProtocolSort.FriendProtocol.Contains(bytes.Protocol))
             {
-                string method = OB[1].ToString();
-                MethodInfo mm = HFE.GetType().GetMethod(method);
+                MethodInfo mm = HandFriendEventMP.GetType().GetMethod(methodname);
                 object[] obj = new object[] { conn, OB };
-                mm.Invoke(HFE, obj);
+                mm.Invoke(HandFriendEventMP, obj);
             }
-            else if (name == ProtocolConst.LockStep)
+            else if (bytes.Protocol == Fursion_Protocol.LockStep)
             {
                 try
                 {
@@ -227,37 +228,43 @@ namespace LockStepServer1._0.NetWorking
                 catch (Exception e)
                 { Console.WriteLine(e.Message + " 221"); }
             }
-            else if (name == ProtocolConst.MSG)
+            else if (ProtocolSort.MSGProtocol.Contains(bytes.Protocol))
             {
                 try
                 {
-                    MethodInfo mm = handleConnMsg.GetType().GetMethod(methodname);
+                    MethodInfo mm = handleConnMP.GetType().GetMethod(methodname);
                     if (mm == null)
                     {
-                        string str = "[警告]handlemsg没有处理连接方法";
+                        string str = "[Warning]HandleMsg Don't Have method precessing method in HandleConnMethodPool" + bytes.Protocol;
                         Console.WriteLine(str + methodname);
                     }
                     object[] obj = new object[] { protoBase };
-                    mm.Invoke(handleConnMsg, obj);
+                    mm.Invoke(handleConnMP, obj);
                 }
                 catch (Exception e)
                 { Console.WriteLine(e.Message + "  239"); }
 
             }
-            else if (conn.Player == null || name == ProtocolConst.HearBeat || name == ProtocolConst.Logout || name == ProtocolConst.CheckOpenid || name == TeamVar.CreateTeam || name == TeamVar.ExitTeam || name == "JSONTEST")
+            else if (conn.Player == null || ProtocolSort.ConnectProtocol.Contains(bytes.Protocol) || name == "JSONTEST")
             {
                 try
                 {
-                    MethodInfo mm = handleConnMsg.GetType().GetMethod(methodname);
+                    MethodInfo mm = handleConnMP.GetType().GetMethod(methodname);
                     if (mm == null)
                     {
-                        string str = "[警告]handlemsg没有处理连接方法";
+                        string str = "【warning】 handlemsg没有处理连接方法";
                         Console.WriteLine(str + methodname);
+                        if (conn.Player == null)
+                        {
+                            ProtocolBytes RestConnect = new ProtocolBytes();
+                            RestConnect.SetProtocol(Fursion_Protocol.Reconnect);
+                            conn.Send(RestConnect);
+                        }
                     }
                     object[] obj = new object[] { conn, protoBase };
                     try
                     {
-                        mm.Invoke(handleConnMsg, obj);
+                        mm.Invoke(handleConnMP, obj);
                     }
                     catch (Exception e)
                     {
@@ -269,6 +276,34 @@ namespace LockStepServer1._0.NetWorking
                 { Console.WriteLine(e.Message + "  261"); }
 
             }
+            else if (ProtocolSort.TeamProtocol.Contains(bytes.Protocol))
+            {
+                try
+                {
+                    MethodInfo mm = HandTeameEventMP.GetType().GetMethod(methodname);
+                    if (mm == null)
+                    {
+                        string str = "【warning】 Don't Method precessing in HandTeameEventMP";
+                        Console.WriteLine(str + methodname);
+                    }
+                    object[] obj = new object[] { conn, protoBase };
+                    try
+                    {
+                        mm.Invoke(HandTeameEventMP, obj);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.Message + "256");
+                    }
+
+                }
+                catch (Exception e)
+                { Console.WriteLine(e.Message + "  261"); }
+            }
+            else if (ProtocolSort.LockStepProtocol.Contains(bytes.Protocol))
+            {
+
+            }
             else
             {
                 try
@@ -276,6 +311,12 @@ namespace LockStepServer1._0.NetWorking
                     MethodInfo mm = handlePlayerEvent.GetType().GetMethod(methodname);
                     if (mm == null)
                     {
+                        if (conn.Player == null)
+                        {
+                            ProtocolBytes RestConnect = new ProtocolBytes();
+                            RestConnect.SetProtocol(Fursion_Protocol.Reconnect);
+                            conn.Send(RestConnect);
+                        }
                         string str = "[警告]handlemsg没有处理玩家方法";
                         Console.WriteLine(str + methodname);
                     }

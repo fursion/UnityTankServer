@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Timers;
 using LockStepServer1._0.Core;
 using LockStepServer1._0.NetWorking;
-using LockStepServer1._0.Protocol;
+using Fursion.Protocol;
 using Newtonsoft.Json;
 
 namespace LockStepServer1._0.LockStep
@@ -16,15 +16,15 @@ namespace LockStepServer1._0.LockStep
     {
         Timer timer = new Timer(50);
         public ProtocolBase Proto;
-        private int S_Farmid = 0;
-        public LogicFrame NowLogicFrame;
+        private int S_Farmid { get; set; } = 0;
+        public LogicFrame NowLogicFrame = new LogicFrame();
         public List<LogicFrame> HistoryFrame = new List<LogicFrame>();
-        public List<EndPoint> P_UDP_IP = new List<EndPoint>();
+        public List<EndPoint> UDP_ClientList { get; set; } = new List<EndPoint>();
         public float Last_FPS_Time = 0;
         public LockStepMGR()
         {
-            Console.WriteLine("启动 Room FPSMgr");
-            Console.WriteLine("启动RecvFPS");
+            Console.WriteLine("Start Room FPSMgr");
+            Console.WriteLine("Start RecvFPS");
         }
         public void SendFps(object sender, ElapsedEventArgs e)
         {
@@ -39,18 +39,27 @@ namespace LockStepServer1._0.LockStep
         public void SendTest(object sender, ElapsedEventArgs e)
         {
             ProtocolBytes LogicFrameStr = new ProtocolBytes();
-            LogicFrameStr.AddData("LockStep");
-            LogicFrameStr.AddData(JsonConvert.SerializeObject(NowLogicFrame));
-            foreach(EndPoint endPoint in P_UDP_IP)
+            LogicFrameStr.SetProtocol(Fursion_Protocol.LockStep);
+            lock (NowLogicFrame.instructFrames)
             {
+                Console.WriteLine(JsonConvert.SerializeObject(NowLogicFrame));
+                LogicFrameStr.AddData(JsonConvert.SerializeObject(NowLogicFrame));
+            }
+            foreach (EndPoint endPoint in UDP_ClientList)
+            {
+                Console.WriteLine(LogicFrameStr.bytes.Length);
                 UDP.instance.SocketSend(LogicFrameStr, endPoint);
             }
             NowLogicFrame = new LogicFrame();
-            NowLogicFrame.LogicFrameID++;
+            S_Farmid++;
+            NowLogicFrame.LogicFrameID = S_Farmid;
         }
         public void PackageLogicFrame(InstructFrame instructFrame)
         {
-            NowLogicFrame.instructFrames.Add(instructFrame);
+            lock (NowLogicFrame.instructFrames)
+            {
+                NowLogicFrame.instructFrames.Add(instructFrame);
+            }
         }
     }
 }

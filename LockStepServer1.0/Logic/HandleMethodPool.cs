@@ -1,54 +1,57 @@
-﻿using LockStepServer1._0.Protocol;
-using System;
+﻿using System;
 using LockStepServer1._0.NetWorking;
 using LockStepServer1._0.Core;
 using LockStepServer1._0.ROOM.Team;
 using Newtonsoft.Json;
+using Fursion.Protocol;
 using LockStepServer1._0.ROOM;
 using System.Threading;
 using System.Web.Security;
+using Fursion.ClassLibrary;
 
 namespace LockStepServer1._0.Logic
 {
-    class HandleConnMsg
+    class HandleConnMethodPool
     {
-        public void MsgReConnect(TCP conn, ProtocolBase proto)
+        public void Reconnect(TCP conn, ProtocolBase proto)
         {
             try
             {
                 ProtocolBytes bytes = (ProtocolBytes)proto;
                 object[] vs = bytes.GetDecode();
-                string Openid = vs[1].ToString();
-                string ReConnectCheckCode = vs[2].ToString();
+                LoginReceipt receipt = JsonConvert.DeserializeObject<LoginReceipt>(bytes.GetDecode()[1].ToString());
                 for (int i = 0; i < NMC.instance.tcps.Length; i++)
                 {
                     if (NMC.instance.tcps[i] == null)
                         continue;
                     if (NMC.instance.tcps[i].Player == null)
                         continue;
-                    if (NMC.instance.tcps[i].Player.Openid == Openid)
+                    if (NMC.instance.tcps[i].Player.Openid == receipt.UserOpenid)
                     {
-                        if (NMC.instance.tcps[i].Player.ReConnectCheckCode == null || NMC.instance.tcps[i].Player.ReConnectCheckCode != ReConnectCheckCode)
+                        if (NMC.instance.tcps[i].Player.NowDeviceUID != receipt.DeviceUID)
                         {
                             Console.WriteLine("ReConnection Check failed");
                             NMC.instance.CloseTCP(conn);
                             return;
                         }
-                        TCP NewTCP = NMC.instance.tcps[i];
-                        conn.Player = NewTCP.Player;
-                        conn.Player.conn = conn;
+                        conn.Player = NMC.instance.tcps[i].Player;
+                        conn.Player.Conn = conn;
                         NMC.instance.tcps[i] = null;
-                        conn.Player.ReConnectCheckCode = Membership.GeneratePassword(20, 0);
-                        ProtocolBytes bytes1 = new ProtocolBytes();
-                        bytes1.AddData("ReConnectRet");
-                        bytes1.AddData(1);
-                        bytes1.AddData(conn.Player.ReConnectCheckCode);
-                        conn.Send(bytes1);
+                        ProtocolBytes Ret = new ProtocolBytes();
+                        Ret.SetProtocol(Fursion_Protocol.ReConnectRet);
+                        conn.Send(Ret);
                         return;
                     }
+                    else
+                        NMC.instance.CloseTCP(conn);
                 }
                 Console.WriteLine(" This User Not Find ");
-                NMC.instance.CloseTCP(conn);
+                Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, receipt,true); }))
+                {
+                    Name = receipt.UserOpenid
+                };
+                ChechOpenidT.Start();
+
             }
             catch (Exception e)
             {
@@ -57,16 +60,12 @@ namespace LockStepServer1._0.Logic
 
 
         }
-        public void MsgFindUser(string NickName)
-        {
-
-        }
         /// <summary>
         /// 心跳
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="proto"></param>
-        public void MsgHearBeat(TCP conn, ProtocolBase proto)
+        public void HearBeat(TCP conn, ProtocolBase proto)
         {
             conn.lastTickTime = Sys.GetTimeStamp();
             //Console.WriteLine("[更新心跳时间]" + conn.GetAddress());
@@ -76,14 +75,14 @@ namespace LockStepServer1._0.Logic
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="protocoBase"></param>
-        public void MsgRegister(TCP conn, ProtocolBase protocoBase)
+        public void Register(TCP conn, ProtocolBase protocoBase)
         {
             ProtocolBytes protoco = (ProtocolBytes)protocoBase;
             object[] vs = protoco.GetDecode();
             string protoName = vs[0].ToString();
             string strFromat = "[收到注册协议]" + conn.GetAddress();
             protoco = new ProtocolBytes();
-            protoco.AddData("Register");
+            protoco.SetProtocol(Fursion_Protocol.Register);
             UserData UD = JsonConvert.DeserializeObject<UserData>(vs[1].ToString());
             string Openid = UD.Openid;
             string NickName = UD.NickNeam;
@@ -106,7 +105,7 @@ namespace LockStepServer1._0.Logic
         /// 消息
         /// </summary>
         /// <param name="bytes"></param>
-        public void MsgMSG(ProtocolBytes bytes)
+        public void MSG(ProtocolBytes bytes)
         {
             Console.WriteLine(bytes.GetDecode()[1]);
             switch (bytes.GetDecode()[1])
@@ -120,25 +119,23 @@ namespace LockStepServer1._0.Logic
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="protocoBase"></param>
-        public void MsgCheckOpenid(TCP conn, ProtocolBase protocoBase)//登录校验
+        public void CheckOpenid(TCP conn, ProtocolBase protocoBase)//登录校验
         {
             ProtocolBytes bytes = (ProtocolBytes)protocoBase;
-            object[] vs = bytes.GetDecode();
-            string Openid = vs[1].ToString();
-            ProtocolBytes RetBytes = new ProtocolBytes();
-            RetBytes.AddData(ProtocolConst.CheckOpenid);
-            Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, vs); }));
-            ChechOpenidT.Name = Openid;
+            LoginReceipt LReceipt = JsonConvert.DeserializeObject<LoginReceipt>(bytes.GetDecode()[1].ToString());
+            Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, LReceipt,false); }))
+            {
+                Name = LReceipt.UserOpenid
+            };
             ChechOpenidT.Start();
         }
-        public static void TrueCheckOpenid(TCP conn, object[] vs)
+        public static void TrueCheckOpenid(TCP conn, LoginReceipt receipt,bool ISReConn)
         {
-            string Openid = vs[1].ToString();
             ProtocolBytes RetBytes = new ProtocolBytes();
-            RetBytes.AddData(ProtocolConst.CheckOpenid);
-            if ((int)vs[2] == ProtocolConst.False)
+            RetBytes.SetProtocol(Fursion_Protocol.CheckOpenid);
+            if (receipt.OnlineRec)
             {
-                if (Player.Kickoff(Openid, false))
+                if (Player.Kickoff(receipt.UserOpenid, false))
                 {
                     RetBytes.AddData(2);
                     conn.Send(RetBytes);
@@ -147,75 +144,62 @@ namespace LockStepServer1._0.Logic
             }
             else
             {
-                if (Player.Kickoff(Openid, true))
+                if (Player.Kickoff(receipt.UserOpenid, true))
                 {
                     RetBytes.AddData(2);
                     conn.Send(RetBytes);
                     return;
                 }
             }
-            PlayerData playerData = DataMgr.instance.GetPlayerData(Openid);
+            PlayerData playerData = DataMgr.instance.GetPlayerData(receipt.UserOpenid);
             if (playerData == null)
             {
                 RetBytes.AddData(-1);
                 conn.Send(RetBytes);
                 return;
             }
-            conn.Player = new Player(Openid, conn)
+            conn.Player = new Player(receipt.UserOpenid, conn)
             {
-                data = playerData
+                Data = playerData
             };
-            conn.Player.ReConnectCheckCode = Membership.GeneratePassword(20, 0);
-            RetBytes.AddData(ProtocolConst.True);//Success
+            conn.Player.NowDeviceUID = receipt.DeviceUID;
+            RetBytes.AddData(0);//Success
             conn.Player.UserData = DataMgr.instance.GetUserData(conn.Player.Openid);
             Friend friend = FriendMC.A.InitFriendListInfo(conn.Player);
             if (friend.GoodList.Keys.Count != 0)
             {
                 ProtocolBytes onlineRet = new ProtocolBytes();
-                onlineRet.AddData(FriendVar.OnlineNotice);
+                onlineRet.SetProtocol(Fursion_Protocol.Friend_OnlineNotice);
                 onlineRet.AddData(conn.Player.Openid);
                 foreach (string id in friend.GoodList.Keys)
                 {
-                    if (FriendMC.A.OnlinePlayerList.ContainsKey(id))
-                        FriendMC.A.OnlinePlayerList[id].Send(onlineRet);
+                    if (FriendMC.OnlinePlayerList.ContainsKey(id))
+                        FriendMC.OnlinePlayerList[id].Send(onlineRet);
                 }
             }
             string FriendListStr = JsonConvert.SerializeObject(friend);
             RetBytes.AddData(FriendListStr);
             ServerMC.This.GetServerInfo(RetBytes, conn);
+            if (ISReConn)
+            {
+                ProtocolBytes Ret = new ProtocolBytes();
+                Ret.SetProtocol(Fursion_Protocol.ReConnectRet);
+                conn.Send(Ret);
+            }
             Console.WriteLine("登录成功******发送   ");
         }
         public static void FalseCheckOpenid(TCP conn)
         {
             ProtocolBytes RetBytes = new ProtocolBytes();
-            RetBytes.AddData(ProtocolConst.CheckOpenid);
-            RetBytes.AddData(ProtocolConst.False);
+            RetBytes.SetProtocol(Fursion_Protocol.CheckOpenid);
+            RetBytes.AddData(1);
             conn.Send(RetBytes);
         }
-        public void MsgTeamInvitation(TCP conn, ProtocolBase protocoBase)
-        {
-            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
-            object[] vs = bytes.GetDecode();
-            string TeamID = vs[1].ToString();
-            string Openid = vs[2].ToString();
-            if (FriendMC.A.OnlinePlayerList.ContainsKey(Openid))
-            {
-                ProtocolBytes Inret = new ProtocolBytes();
-                Inret.AddData(TeamVar.Team_Invitation);
-                Inret.AddData("3V3");
-                Inret.AddData(TeamID);
 
-                UserData UD = new UserData();
-                UD = DataMgr.instance.GetUserData(Openid);
-                string UDStr = JsonConvert.SerializeObject(UD);
-                Inret.AddData(UDStr);
-                FriendMC.A.OnlinePlayerList[Openid].Send(Inret);
-            }
-        }
-        public void MsgLogout(TCP conn, ProtocolBase protocoBase)
+        public void Logout(TCP conn, ProtocolBase protocoBase)
         {
             ProtocolBytes protocoBytes = new ProtocolBytes();
-            protocoBytes.AddData("Logout");
+            protocoBytes.SetProtocol(Fursion_Protocol.Logout);
             protocoBytes.AddData(0);
             if (conn.Player == null)
             {
@@ -228,47 +212,8 @@ namespace LockStepServer1._0.Logic
                 conn.Player.Logout();
             }
         }
-        public void MsgIntoTeam(TCP conn, ProtocolBase protocoBase)
-        {
-            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
-            object[] vs = bytes.GetDecode();
-            string TeamOpenid = vs[1].ToString();
-            TeamMC.A.IntoTeam(TeamOpenid, conn.Player);
-        }
-        public void MsgExitTeam(TCP conn, ProtocolBase protocoBase)
-        {
-            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
-            object[] vs = bytes.GetDecode();
-            string TeamOpenid = vs[1].ToString();
-            string TargetOpenid = vs[2].ToString();
-            try
-            {
 
-                TeamMC.A.ExitTeam(TeamOpenid, conn.Player, TargetOpenid);
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("HandleConnMsg     MsgExitTeam  " + e.Message);
-            }
-
-        }
-        public void MsgCreateTeam(TCP conn, ProtocolBase protocoBase)
-        {
-            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
-            object[] vs = bytes.GetDecode();
-            string TeamOpenid = vs[1].ToString();
-            try
-            {
-                TeamMC.A.CreateTeam(conn.Player, vs);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("MsgCreateTeam   207" + e.Message);
-            }
-
-        }
-        public void MsgJSONTEST(TCP conn, ProtocolBase protocoBase)
+        public void JSONTEST(TCP conn, ProtocolBase protocoBase)
         {
             Friend friend = new Friend();
             string jsonstr = JsonConvert.SerializeObject(friend);
@@ -279,7 +224,7 @@ namespace LockStepServer1._0.Logic
             conn.Send(bytes);
         }
     }
-    class HandFriendEvent
+    class HandFriendEventMethodPool
     {
         public void AddFriend(TCP conn, object[] OB)
         {
@@ -313,6 +258,73 @@ namespace LockStepServer1._0.Logic
         public void FindUser(TCP conn, object[] OB)
         {
             FriendMC.A.FindUser(conn.Player, OB);
+        }
+    }
+    class HandTeamEventMethodPool
+    {
+        public void TeamInvitation(TCP conn, ProtocolBase protocoBase)
+        {
+            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
+            object[] vs = bytes.GetDecode();
+            TeamMC.A.TeamInvitation(conn.Player, vs);
+        }
+        public void IntoTeam(TCP conn, ProtocolBase protocoBase)
+        {
+            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
+            object[] vs = bytes.GetDecode();
+            string TeamOpenid = vs[1].ToString();
+            TeamMC.A.IntoTeam(TeamOpenid, conn.Player);
+        }
+        public void ExitTeam(TCP conn, ProtocolBase protocoBase)
+        {
+            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
+            object[] vs = bytes.GetDecode();
+            try
+            {
+
+                TeamMC.A.ExitTeam(conn.Player);
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("HandleConnMsg     MsgExitTeam  " + e.Message);
+            }
+        }
+        public void Ready(TCP conn, ProtocolBase protocoBase)
+        {
+            conn.Player.GameReady = true;
+            if (conn.Player.Team != null)
+                conn.Player.Team.UpdateTeam();
+        }
+        public void DisReady(TCP conn, ProtocolBase protocoBase)
+        {
+            conn.Player.GameReady = false;
+            if (conn.Player.Team != null)
+                conn.Player.Team.UpdateTeam();
+        }
+        public void CreateTeam(TCP conn, ProtocolBase protocoBase)
+        {
+            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
+            object[] vs = bytes.GetDecode();
+            try
+            {
+                TeamMC.A.CreateTeam(conn.Player, vs);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("MsgCreateTeam   207" + e.Message);
+            }
+
+        }
+        public void TeamStart(TCP conn, ProtocolBase protocoBase)
+        {
+            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
+            object[] vs = bytes.GetDecode();
+            string TeamID = vs[1].ToString();
+            if (conn.Player.TeamOpenid == TeamID)
+            {
+                TeamMC.A.TeamDict[TeamID].Start();
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft;
+using Fursion.ClassLibrary;
 
 public enum State
 {
@@ -33,15 +34,6 @@ namespace LockStepServer1._0.Core
         public Dictionary<string, FriendInfo> BlackList = new Dictionary<string, FriendInfo>();
         public Dictionary<string, FriendInfo> ApplyList = new Dictionary<string, FriendInfo>();
     }
-
-    [Serializable]
-    public class UserData
-    {
-        public string NickNeam;
-        public string NickWebPath;
-        public string Openid;
-    }
-
     [Serializable]
     public class FriendInfo
     {
@@ -52,11 +44,6 @@ namespace LockStepServer1._0.Core
     public class FindUserList
     {
         public Dictionary<string, UserData> UserList = new Dictionary<string, UserData>();
-    }
-    [Serializable]
-    public class TeamMemberList
-    {
-        public UserData[] MembetList;
     }
     [Serializable]
     public class ServerInfo

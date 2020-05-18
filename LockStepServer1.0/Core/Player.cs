@@ -5,8 +5,10 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using LockStepServer1._0.NetWorking;
-using LockStepServer1._0.Protocol;
 using LockStepServer1._0.ROOM.Team;
+using LockStepServer1._0.LockStep;
+using Fursion.Protocol;
+using Fursion.ClassLibrary;
 
 public enum PlayerState
 {
@@ -15,31 +17,40 @@ public enum PlayerState
 }
 namespace LockStepServer1._0.Core
 {
+    class GameInfo
+    {
+        public Room Room { get; set; }
+        public SelectModel SelectModel { get; set; } = new SelectModel();
+    }
     class Player
     {
-        public string Name;
-        public string Openid;
-        public string ReConnectCheckCode;//断线重连校验码
-        public PlayerState NowState = PlayerState.None;//玩家状态
-        public UserData UserData;
-        public string TeamOpenid;//队伍ID
-        public string RoomID;//游戏房间ID，场次ID
+        public string Name { get; set; }
+        public string Openid { get; set; }
+        public string NowDeviceUID { get; set; }//当前登录设备的唯一识别码
+        public string ReConnectCheckCode { get; set; }//断线重连校验码
+        public PlayerState NowState { get; set; } = PlayerState.None;//玩家状态
+        public UserData UserData { get; set; }
+        public string TeamOpenid;
+        public string RoomID;
+        public Room room { get; set; }
+        public TeamBase Team { get; set; }
         public Friend friend;
-        public PlayerData data;
-        public PlayerTempData tempData;
-        public TCP conn;
-        public EndPoint UDPClient;
+        public bool GameReady { get; set; }
+        public PlayerData Data { get; set; }
+        public PlayerTempData TempData { get; set; }
+        public TCP Conn { get; set; }
+        public EndPoint UDPClient { get; set; }
         public Player(string Openid, TCP conn)
         {
             this.Openid = Openid;
-            this.conn = conn;
-            tempData = new PlayerTempData();
+            this.Conn = conn;
+            TempData = new PlayerTempData();
         }
         public void Send(ProtocolBase proto)
         {
-            if (conn == null)
+            if (Conn == null)
                 return;
-            NMC.instance.Send(conn, proto);
+            NMC.instance.Send(Conn, proto);
         }
         public static bool Kickoff(String Openid, bool T)
         {
@@ -54,7 +65,7 @@ namespace LockStepServer1._0.Core
                     continue;
                 if (conns[i].Player.Openid == Openid)//防止重复登录
                 {
-                    if(conns[i].Player.NowState ==PlayerState.None)
+                    if (conns[i].Player.NowState == PlayerState.None)
                         return !conns[i].Player.Logout();
                     lock (conns[i].Player)
                     {
@@ -77,7 +88,7 @@ namespace LockStepServer1._0.Core
         {
             try
             {
-                NMC.instance.CloseTCP(conn);
+                NMC.instance.CloseTCP(Conn);
                 return true;
             }
             catch (Exception e)
@@ -88,7 +99,7 @@ namespace LockStepServer1._0.Core
         public void Close()
         {
             if (TeamOpenid != null)
-                TeamMC.A.ExitTeam(TeamOpenid, this, Openid);
+                TeamMC.A.ExitTeam(this);
         }
     }
 }

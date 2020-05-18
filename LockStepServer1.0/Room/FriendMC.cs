@@ -5,7 +5,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using LockStepServer1._0.Protocol;
+using Fursion.Protocol;
+using Fursion.ClassLibrary;
 /**
  * @fursion 2019-11-12
  * E-Mail fursion@fursion.cn
@@ -16,7 +17,7 @@ namespace LockStepServer1._0.ROOM
     class FriendMC
     {
         public static FriendMC A;
-        public Dictionary<string, Player> OnlinePlayerList = new Dictionary<string, Player>();
+        public static Dictionary<string, Player> OnlinePlayerList = new Dictionary<string, Player>();
         public Dictionary<string, Friend> OnlinePlayerInfoList = new Dictionary<string, Friend>();
         public FriendMC()
         {
@@ -30,9 +31,9 @@ namespace LockStepServer1._0.ROOM
         /// <param name="vs"></param>
         public void AddFriend(Player player, object[] vs)
         {
-            string TarID = vs[FriendVar.TargetID].ToString();
+            string TarID = vs[1].ToString();
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.AddApply);
+            bytes.SetProtocol(Fursion_Protocol.Friend_AddApply);
             if (DataMgr.instance.AddFriend(player, TarID))
             {
                 bytes.AddData(0);
@@ -50,6 +51,7 @@ namespace LockStepServer1._0.ROOM
         {
             if (OnlinePlayerList.ContainsKey(Openid))
             {
+                OnlinePlayerList[Openid] = player;
                 if (OnlinePlayerInfoList.ContainsKey(Openid))
                     return;
                 else
@@ -99,7 +101,7 @@ namespace LockStepServer1._0.ROOM
         {
             string TarID = vs[FriendVar.TargetID].ToString();
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.AddApply);
+            bytes.SetProtocol(Fursion_Protocol.Friend_AddApply);
             if (DataMgr.instance.DelFriend(player.Openid, TarID))
             {
                 bytes.AddData(0);
@@ -113,9 +115,9 @@ namespace LockStepServer1._0.ROOM
         }
         public void ApplyAddFriend(Player player, object[] vs)
         {
-            string TarID = vs[FriendVar.TargetID].ToString();
+            string TarID = vs[1].ToString();
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.AddApply);
+            bytes.SetProtocol(Fursion_Protocol.Friend_AddApply);
             if (DataMgr.instance.AddApplyFriend(player, TarID))
             {
                 bytes.AddData(0);
@@ -123,14 +125,14 @@ namespace LockStepServer1._0.ROOM
                 if (OnlinePlayerList.ContainsKey(TarID))
                 {
                     ProtocolBytes byt = new ProtocolBytes();
-                    byt.AddData(FriendVar.UpdateList);
+                    byt.SetProtocol(Fursion_Protocol.Friend_UpdateList);
                     OnlinePlayerList[TarID].Send(byt);
                 }
                 Console.WriteLine("添加申请成功");
                 if (OnlinePlayerList.ContainsKey(TarID))
                 {
                     ProtocolBytes OnlneApply = new ProtocolBytes();
-                    OnlneApply.AddData(FriendVar.OnlineApply);
+                    OnlneApply.SetProtocol(Fursion_Protocol.Friend_OnlineApply);
                     OnlneApply.AddData(player.Openid);
                     UserData UD = DataMgr.instance.GetUserData(player.Openid);
                     string UDStr = JsonConvert.SerializeObject(UD);
@@ -151,9 +153,9 @@ namespace LockStepServer1._0.ROOM
         }
         public void delApply(Player player, object[] vs)
         {
-            string TarID = vs[FriendVar.TargetID].ToString();
+            string TarID = vs[1].ToString();
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.DelApply);
+            bytes.SetProtocol(Fursion_Protocol.Friend_DelApply);
             if (DataMgr.instance.DelApplyFriend(player.Openid, TarID))
             {
                 bytes.AddData(0);
@@ -169,9 +171,9 @@ namespace LockStepServer1._0.ROOM
         }
         public void AddBlackList(Player player, object[] vs)
         {
-            string TarID = vs[FriendVar.TargetID].ToString();
+            string TarID = vs[1].ToString();
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.AddApply);
+            bytes.SetProtocol(Fursion_Protocol.Friend_AddApply);
             if (DataMgr.instance.AddBlackFriend(player, TarID))
             {
                 bytes.AddData(0);
@@ -187,7 +189,7 @@ namespace LockStepServer1._0.ROOM
         {
             string TarID = vs[FriendVar.TargetID].ToString();
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.AddApply);
+            bytes.SetProtocol(Fursion_Protocol.Friend_AddApply);
             if (DataMgr.instance.DelBlackFriend(player.Openid, TarID))
             {
                 bytes.AddData(0);
@@ -232,8 +234,9 @@ namespace LockStepServer1._0.ROOM
                 }
             }
             string FriendListStr = JsonConvert.SerializeObject(friend);
+            Console.WriteLine(FriendListStr);
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.GetFriendListInfo);
+            bytes.SetProtocol(Fursion_Protocol.Friend_GetFriendListInfo);
             bytes.AddData(FriendListStr);
             player.Send(bytes);
         }
@@ -286,8 +289,8 @@ namespace LockStepServer1._0.ROOM
         public void FindUser(Player player, object[] vs)
         {
             ProtocolBytes bytes = new ProtocolBytes();
-            bytes.AddData(FriendVar.FindUser);
-            string NackName = vs[2].ToString();
+            bytes.SetProtocol(Fursion_Protocol.Friend_FindUser);
+            string NackName = vs[1].ToString();
             FindUserList FUL = new FindUserList
             {
                 UserList = DataMgr.instance.FindUser(NackName)
@@ -302,6 +305,13 @@ namespace LockStepServer1._0.ROOM
             bytes.AddData(0);
             bytes.AddData(FULStr);
             player.Send(bytes);
+        }
+        public static void PrintOnlinelist()
+        {
+            foreach (var item in OnlinePlayerList.Values)
+            {
+                Console.WriteLine(item.Openid);
+            }
         }
     }
 }

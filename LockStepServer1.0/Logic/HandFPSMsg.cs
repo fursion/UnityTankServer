@@ -1,4 +1,4 @@
-﻿using LockStepServer1._0.Protocol;
+﻿using Fursion.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,17 +11,11 @@ namespace LockStepServer1._0.Logic
 {
     class HandFPSMsg
     {
-        public void MsgFPS(ProtocolBase protocoBase)
+        public void FPS(ProtocolBase protocoBase)
         {
-            Console.WriteLine("处理FPS");
-            ProtocolBytes proto = (ProtocolBytes)protocoBase;
-            int start = 0;
-            string ProtoName = proto.GetString(start, ref start);
-            int RoomId = proto.GetInt(start, ref start);
-            int C_FPS_id = proto.GetInt(start, ref start);
-            //ReceFPS.instance.RecFps(player,protocoBase);
+            
         }
-        public void MsgLockStep(ProtocolBase protocoBase)
+        public void LockStep(ProtocolBase protocoBase)
         {
             Console.WriteLine("处理LockStep");
             ProtocolBytes proto = (ProtocolBytes)protocoBase;
