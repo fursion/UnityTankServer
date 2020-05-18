@@ -30,12 +30,13 @@ namespace LockStepServer1._0.Core
         public string ReConnectCheckCode { get; set; }//断线重连校验码
         public PlayerState NowState { get; set; } = PlayerState.None;//玩家状态
         public UserData UserData { get; set; }
-        public string TeamOpenid;
-        public string RoomID;
-        public Room room { get; set; }
+        public string TeamOpenid { get; set; }
+        public string RoomOpenid { get; set; }
+        public Room Room { get; set; }
         public TeamBase Team { get; set; }
         public Friend friend;
-        public bool GameReady { get; set; }
+        public bool GameReady { get; set; } = true;
+        public bool JoinGameRoom { get; set; } = false;
         public PlayerData Data { get; set; }
         public PlayerTempData TempData { get; set; }
         public TCP Conn { get; set; }

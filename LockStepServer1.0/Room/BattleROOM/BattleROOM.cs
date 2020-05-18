@@ -8,6 +8,6 @@ namespace LockStepServer1._0.ROOM.BattleROOM
 {
     class BattleROOM
     {
-        public Room[] rooms = new Room[2];
+        
     }
 }

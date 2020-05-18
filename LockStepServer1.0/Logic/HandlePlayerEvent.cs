@@ -27,7 +27,7 @@ namespace LockStepServer1._0.Logic
             string TeamID = vs[1].ToString();
             if (conn.Player.TeamOpenid == TeamID)
             {
-                TeamMC.A.TeamDict[TeamID].Start();
+                TeamMC.A.TeamDict[TeamID].StartGameing();
             }
         }
         public void IntoTeam(TCP conn, ProtocolBase protocoBase)

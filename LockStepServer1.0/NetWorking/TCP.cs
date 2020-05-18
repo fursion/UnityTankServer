@@ -56,7 +56,7 @@ namespace LockStepServer1._0.NetWorking
         { 
             if (Player != null)
             {
-                if (Player.NowState == PlayerState.Playing)
+                if (Player.NowState == PlayerState.Playing||Player.Room!=null)
                     return;
                 //Processing Player
                 Player.Close();

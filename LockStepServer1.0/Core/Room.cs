@@ -12,6 +12,8 @@ using System.Timers;
 using LockStepServer1._0.ROOM;
 using Newtonsoft.Json;
 using Fursion.Protocol;
+using Fursion.Tools;
+using Fursion.ClassLibrary;
 
 namespace LockStepServer1._0.Core
 {
@@ -22,8 +24,15 @@ namespace LockStepServer1._0.Core
             Prepare = 1,
             Fight = 2,
         }
+        public int TeamMemberNumber;
+        public Player[] RedTeam;
+        public Player[] BlueTeam;
+        public Player[] RoomMember;
+        public TeamType RoomType { get; set; }
+        public TeamMode RoomMode { get; set; }
         public Status status { get; set; } = Status.Prepare;
         public int RoomID { get; set; } = 0;
+        public string RoomOpenid;
         public int MaxPlayer { get; set; } = 10;
         /// <summary>
         /// 返回值单位为ms,传入值单位为秒
@@ -41,6 +50,70 @@ namespace LockStepServer1._0.Core
         public Timer RightTimer;//Right倒计时定时器
         public Timer SelectTime;
         private Timer StartTimer;
+        public Room(Player[] players, TeamMode teamMode, TeamType teamType)
+        {
+            switch (teamType)
+            {
+                case TeamType.One: TeamMemberNumber = 1; break;
+                case TeamType.Three: TeamMemberNumber = 3; break;
+                case TeamType.Five: TeamMemberNumber = 5; break;
+            }
+            if (players.Length != TeamMemberNumber * 2)
+                return;
+            RoomMember = players;
+            RoomMode = teamMode;
+            RoomType = teamType;
+            RedTeam = new Player[TeamMemberNumber];
+            for (int i = 0; i < TeamMemberNumber; i++)
+            {
+                RedTeam[i] = RoomMember[i];
+                RedTeam[i].Room = this;
+            }
+            BlueTeam = new Player[TeamMemberNumber];
+            for (int i = 0; i < TeamMemberNumber; i++)
+            {
+                BlueTeam[i] = RoomMember[TeamMemberNumber + i];
+                RedTeam[i].Room = this;
+            }
+            TimeInit();
+            GoToConfirmStage();
+        }
+        public UserData[] GetTeamMemberInfo(Player[] Ps)
+        {
+            UserData[] UDs = new UserData[TeamMemberNumber];
+            for (int i = 0; i < TeamMemberNumber; i++)
+            {
+                if (Ps[i] != null)
+                {
+                    UDs[i] = Ps[i].UserData;
+                }
+            }
+            return UDs;
+        }
+        public UserData[] RoomPlayerInfo()
+        {
+            UserData[] UDs = new UserData[TeamMemberNumber * 2];
+            for (int i = 0; i < TeamMemberNumber * 2; i++)
+            {
+                if (RoomMember[i] != null)
+                {
+                    UDs[i] = RoomMember[i].UserData;
+                }
+            }
+            return UDs;
+        }
+        public bool[] GetRoomMemberJoin()
+        {
+            bool[] Joins = new bool[TeamMemberNumber * 2];
+            for (int i = 0; i < TeamMemberNumber * 2; i++)
+            {
+                if (RoomMember[i] != null)
+                {
+                    Joins[i] = RoomMember[i].JoinGameRoom;
+                }
+            }
+            return Joins;
+        }
         /// <summary>
         /// Room初始化
         /// </summary>
@@ -55,7 +128,7 @@ namespace LockStepServer1._0.Core
             {
                 if (players[i] == null)
                     continue;
-                players[i].room = this;
+                players[i].Room = this;
                 MemberList.Add(players[i].Openid, players[i]);
                 RoomPlayer roomPlayer = new RoomPlayer
                 {
@@ -67,6 +140,21 @@ namespace LockStepServer1._0.Core
                 players[i].TempData.PlayerGameInfo = roomPlayer;
             }
             GoToConfirmStage();
+        }
+        public void UpdateRoomInfo()
+        {
+            ProtocolBytes UpdateInfo = new ProtocolBytes();
+            UpdateInfo.SetProtocol(Fursion_Protocol.UpdateRoomInfo);
+            RoomReceipt roominfo = new RoomReceipt();
+            roominfo.RoomOpenid = RoomOpenid;
+            roominfo.RoomMode = RoomMode;
+            roominfo.RoomType = RoomType;
+            roominfo.RedTeamMembers = GetTeamMemberInfo(RedTeam);
+            roominfo.BlueTeamMemBers = GetTeamMemberInfo(BlueTeam);
+            roominfo.RoomMembers = RoomPlayerInfo();
+            roominfo.JoinBool = GetRoomMemberJoin();
+            UpdateInfo.AddData(roominfo);
+            TCPBroadCast(UpdateInfo);
         }
         private void TimeInit()
         {
@@ -121,25 +209,62 @@ namespace LockStepServer1._0.Core
         /// </summary>
         public void GoToConfirmStage()
         {
-            ProtocolBytes bytes = new ProtocolBytes();
-            bytes.SetProtocol(Fursion_Protocol.StartGame);
-            RoomInitInfo roomInitInfo = new RoomInitInfo();
-            foreach (Player player in MemberList.Values)
-            {
-                RoomPlayer roomPlayer = player.TempData.PlayerGameInfo;
-                roomInitInfo.RoomPlayers.Add(roomPlayer);
-            }
-            bytes.AddData(JsonConvert.SerializeObject(roomInitInfo));
-            Console.WriteLine(JsonConvert.SerializeObject(roomInitInfo));
-            foreach (Player player in MemberList.Values)
-            {
-                if (player != null)
-                    player.Send(bytes);
-            }
+            ProtocolBytes JoinRoom = new ProtocolBytes();
+            JoinRoom.SetProtocol(Fursion_Protocol.ConfirmEnter);
+            RoomReceipt roomReceipt = new RoomReceipt();
+            roomReceipt.RoomOpenid = RoomOpenid;
+            roomReceipt.RoomMode = RoomMode;
+            roomReceipt.RoomType = RoomType;
+            roomReceipt.RedTeamMembers = GetTeamMemberInfo(RedTeam);
+            roomReceipt.BlueTeamMemBers = GetTeamMemberInfo(BlueTeam);
+            roomReceipt.RoomMembers = RoomPlayerInfo();
+            roomReceipt.JoinBool = GetRoomMemberJoin();
+            JoinRoom.AddData(roomReceipt);
+            TCPBroadCast(JoinRoom);
             RightTimer.Enabled = true;
+        }
+        /// <summary>
+        /// 房间内TCP广播
+        /// </summary>
+        /// <param name="Proto"></param>
+        private void TCPBroadCast(ProtocolBytes Proto)
+        {
+            try
+            {
+                foreach (var er in RoomMember)
+                {
+                    er.Send(Proto);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message + " from:  Room.BroadCast");
+            }
+        }
+        /// <summary>
+        /// 房间内UDP广播
+        /// </summary>
+        /// <param name="Proto"></param>
+        private void UDPBroadCast(ProtocolBytes Proto)
+        {
+            foreach (Player player in RoomMember)
+            {
+                if (player != null && player.UDPClient != null)
+                    UDP.instance.SocketSend(Proto, player.UDPClient);
+            }
         }
         private void RightMathod(object sender, ElapsedEventArgs e)
         {
+            Console.WriteLine("确认时间到");
+            if (GetRoomMemberJoin().GetBoolArryTureNumber() < TeamMemberNumber * 2)
+            {
+                Console.WriteLine("销毁房间");
+                foreach(var item in RoomMember)
+                {
+                    item.RoomOpenid = null;
+                    item.Room = null;
+                }
+            }
             End();
         }
         /// <summary>
@@ -228,35 +353,17 @@ namespace LockStepServer1._0.Core
         /// <param name="player"></param>
         public void RightMethod(Player player)//游戏确认
         {
-            player.TempData.PlayerGameInfo.Right = true;
-            RoomInitInfo roomplayerInfo = new RoomInitInfo();
-            ProtocolBytes bytes = new ProtocolBytes();
-            bytes.SetProtocol(Fursion_Protocol.RightUpDate);
-            bool Temp = true;
-            foreach (Player player1 in MemberList.Values)
-            {
-                roomplayerInfo.RoomPlayers.Add(player1.TempData.PlayerGameInfo);
-                Temp &= player1.TempData.PlayerGameInfo.Right;
-            }
-            bytes.AddData(JsonConvert.SerializeObject(roomplayerInfo));
-            foreach (Player player1 in MemberList.Values)
-            {
-                UDP.instance.SocketSend(bytes, player1.UDPClient);
-            }
-            if (Temp)
-            {
+            player.JoinGameRoom = true;
+            UpdateRoomInfo();
+            if (GetRoomMemberJoin().GetBoolArryTureNumber() == RoomMember.Length)
                 ToSelectStage();
-            }
         }
         private void ToSelectStage()
         {
             RightTimer.Dispose();
             ProtocolBytes StartBytes = new ProtocolBytes();
             StartBytes.SetProtocol(Fursion_Protocol.GoToSelect);
-            foreach (Player player1 in MemberList.Values)
-            {
-                UDP.instance.SocketSend(StartBytes, player1.UDPClient);
-            }
+            TCPBroadCast(StartBytes);
             SelectTime.Enabled = true;
         }
         /// <summary>
@@ -299,7 +406,7 @@ namespace LockStepServer1._0.Core
         {
             for (int i = 0; i < MemberList.Values.ToList().Count; i++)
             {
-                MemberList.Values.ToList()[i].room = null;
+                MemberList.Values.ToList()[i].Room = null;
             }
         }
     }

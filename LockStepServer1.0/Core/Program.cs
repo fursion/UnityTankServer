@@ -43,7 +43,7 @@ namespace LockStepServer1._0
             ServerMC SMC = new ServerMC();//服务器管理
             //SynTest Syt = new SynTest();/////////
             SMC.Start(ipAddress, 2012);
-            Core.Room room = new Core.Room();
+            //Core.Room room = new Core.Room();
             //Scene scene = new Scene();
             //RoomMgr roomMgr = new RoomMgr();
             World world = new World();

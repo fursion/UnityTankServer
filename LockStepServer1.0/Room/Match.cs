@@ -8,7 +8,7 @@ namespace LockStepServer1._0.ROOM
 {
     class Matchmate
     {
-        Room room = new Room();
+        
 
     }
     class Matchenemies

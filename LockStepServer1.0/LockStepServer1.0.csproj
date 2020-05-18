@@ -26,7 +26,7 @@
     <InstallUrl>https://Server.fursion.cn/LockStepServer/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>70</ApplicationRevision>
+    <ApplicationRevision>75</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -106,6 +106,7 @@
     <Compile Include="Core\Player.cs" />
     <Compile Include="Core\PlayerData.cs" />
     <Compile Include="Core\PlayerTempData.cs" />
+    <Compile Include="Core\Room.cs" />
     <Compile Include="Core\Sys.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="JsontEST.cs" />
@@ -137,7 +138,6 @@
     <Compile Include="ROOM\BattleROOM\BattleROOM.cs" />
     <Compile Include="ROOM\FriendMC.cs" />
     <Compile Include="ROOM\Match.cs" />
-    <Compile Include="ROOM\Room.cs" />
     <Compile Include="ROOM\RoomBase.cs" />
     <Compile Include="ROOM\RoomMC.cs" />
     <Compile Include="ROOM\RoomPlayer.cs" />

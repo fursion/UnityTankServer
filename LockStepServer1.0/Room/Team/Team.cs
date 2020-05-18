@@ -47,14 +47,24 @@ namespace LockStepServer1._0.ROOM.Team
             bool[] readys = TeamReadyInfo();
             if (TeamMode == TeamMode.Custom)
             {
-                if (readys.GetBoolArryTureNumber() == m_PresetNumber)
+                if (EffectivePlayerNumber() == m_PresetNumber)
                 {
-                    Room
-                    Console.WriteLine("开始");
+                    if (readys.GetBoolArryTureNumber() == m_PresetNumber)
+                    {
+                        Room room = new Room(Players, TeamMode, TeamType)
+                        {
+                            RoomOpenid = TeamOpenid
+                        };
+                        Console.WriteLine("开始");
+                    }
+                    else
+                    {
+                        Console.WriteLine("有玩家没有准备");
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("有玩家没有准备");
+                    Console.WriteLine("当前为自定义模式，房间内人数不足！");
                 }
             }
             else
@@ -68,6 +78,7 @@ namespace LockStepServer1._0.ROOM.Team
                     Console.WriteLine("有玩家没有准备");
                 }
             }
+
         }
         /// <summary>
         /// 检查玩家是否在队伍中
@@ -200,11 +211,6 @@ namespace LockStepServer1._0.ROOM.Team
                 }
             }
             return null;
-        }
-        public void Start()
-        {
-            Core.Room room = new Core.Room();
-            room.Init(Players);
         }
         /// <summary>
         /// 向成员更新队伍信息

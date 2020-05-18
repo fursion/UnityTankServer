@@ -113,9 +113,8 @@ namespace LockStepServer1._0.NetWorking
         {
             ProtocolBytes Data = (ProtocolBytes)protoc;
             object[] dat = Data.GetDecode();
-            string MsgName = dat[0].ToString();
+            string MsgName = Data.Protocol.ToString();
             Console.WriteLine(MsgName);
-            string methodname = "Msg" + MsgName;
             if (Data.Protocol == Fursion_Protocol.UDPInit)
             {
                 lock (valuePairs)
@@ -146,7 +145,7 @@ namespace LockStepServer1._0.NetWorking
                 lock (valuePairs)
                 {
                     valuePairs[Client].TempData.PlayerGameInfo.LockSelect = true;
-                    valuePairs[Client].room.LockSelect();
+                    valuePairs[Client].Room.LockSelect();
                 }
             }
             else if (Data.Protocol == Fursion_Protocol.SynTest)
@@ -167,7 +166,7 @@ namespace LockStepServer1._0.NetWorking
 
                     InstructFrame instruct = JsonConvert.DeserializeObject<InstructFrame>(dat[1].ToString());
                     if (valuePairs.ContainsKey(Client))
-                        valuePairs[Client].room.LSM.PackageLogicFrame(instruct);
+                        valuePairs[Client].Room.LSM.PackageLogicFrame(instruct);
                 }
             }
             else if (Data.Protocol == Fursion_Protocol.Loading)
@@ -175,7 +174,7 @@ namespace LockStepServer1._0.NetWorking
                 lock (valuePairs)
                 {
                     if (valuePairs.ContainsKey(Client))
-                        valuePairs[Client].room.LoadingMethod(valuePairs[Client], dat);
+                        valuePairs[Client].Room.LoadingMethod(valuePairs[Client], dat);
                 }
             }
             else
@@ -193,18 +192,27 @@ namespace LockStepServer1._0.NetWorking
             EndPoint Client = (EndPoint)vs[1];
             for (int i = 0; i < NMC.instance.tcps.Length; i++)
             {
-                TCP Conn = NMC.instance.tcps[i];
-                if (Conn == null)
-                    continue;
-                if (Conn.Player == null)
-                    continue;
-                if (Conn.Player.Openid == openid)
+                try
                 {
-                    Conn.Player.UDPClient = Client;
-                    Conn.Player.room.RightMethod(Conn.Player);
-                    Conn.Player.room.UDP_ClientList.Add(Client);
-                    if (!valuePairs.ContainsKey(Client))
-                        valuePairs.Add(Client, Conn.Player);
+                    if (NMC.instance.tcps[i] == null)
+                        continue;
+                    TCP Conn = NMC.instance.tcps[i];
+                    if (Conn == null)
+                        continue;
+                    if (Conn.Player == null)
+                        continue;
+                    if (Conn.Player.Openid == openid)
+                    {
+                        Conn.Player.UDPClient = Client;
+                        Conn.Player.Room.RightMethod(Conn.Player);
+                        Conn.Player.Room.UDP_ClientList.Add(Client);
+                        if (!valuePairs.ContainsKey(Client))
+                            valuePairs.Add(Client, Conn.Player);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
                 }
             }
         }

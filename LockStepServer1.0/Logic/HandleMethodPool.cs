@@ -46,7 +46,7 @@ namespace LockStepServer1._0.Logic
                         NMC.instance.CloseTCP(conn);
                 }
                 Console.WriteLine(" This User Not Find ");
-                Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, receipt,true); }))
+                Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, receipt, true); }))
                 {
                     Name = receipt.UserOpenid
                 };
@@ -123,13 +123,13 @@ namespace LockStepServer1._0.Logic
         {
             ProtocolBytes bytes = (ProtocolBytes)protocoBase;
             LoginReceipt LReceipt = JsonConvert.DeserializeObject<LoginReceipt>(bytes.GetDecode()[1].ToString());
-            Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, LReceipt,false); }))
+            Thread ChechOpenidT = new Thread(new ThreadStart(delegate { DataMgr.instance.CheckOpenid(conn, LReceipt, false); }))
             {
                 Name = LReceipt.UserOpenid
             };
             ChechOpenidT.Start();
         }
-        public static void TrueCheckOpenid(TCP conn, LoginReceipt receipt,bool ISReConn)
+        public static void TrueCheckOpenid(TCP conn, LoginReceipt receipt, bool ISReConn)
         {
             ProtocolBytes RetBytes = new ProtocolBytes();
             RetBytes.SetProtocol(Fursion_Protocol.CheckOpenid);
@@ -318,13 +318,15 @@ namespace LockStepServer1._0.Logic
         }
         public void TeamStart(TCP conn, ProtocolBase protocoBase)
         {
-            ProtocolBytes bytes = (ProtocolBytes)protocoBase;
-            object[] vs = bytes.GetDecode();
-            string TeamID = vs[1].ToString();
-            if (conn.Player.TeamOpenid == TeamID)
+            if (conn.Player.TeamOpenid != null)
             {
-                TeamMC.A.TeamDict[TeamID].Start();
+                TeamMC.A.TeamDict[conn.Player.TeamOpenid].StartGameing();
             }
+        }
+        public void ConfirmEnter(TCP conn, ProtocolBase protocoBase)
+        {
+            conn.Player.JoinGameRoom = true;
+            conn.Player.Room.UpdateRoomInfo();
         }
     }
 }
